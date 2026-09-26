@@ -6,7 +6,7 @@ import { findVehicle, useVehicleCatalog } from "../../lib/vehicles";
 import { useMediaQuery } from "../../lib/useMediaQuery";
 import { formatNumber } from "../../lib/format";
 import { ConnectorMark } from "../../ui/ConnectorMark";
-import { IconCheck } from "../../ui/icons";
+import { IconCheck, IconPowerLevel } from "../../ui/icons";
 
 export function FilterBar({
   filters,
@@ -83,7 +83,7 @@ export function FilterBar({
       {isMobile && !open && summary && <p className="filter-summary">{summary}</p>}
       {expanded && (
         <div className="filters-body" id="map-filters">
-          <div className="filter-group" role="group" aria-labelledby="filter-connectors">
+          <div className="filter-group connector-filter-group" role="group" aria-labelledby="filter-connectors">
             <span className="group-label" id="filter-connectors">
               کانکتور
             </span>
@@ -108,9 +108,9 @@ export function FilterBar({
               );
             })}
           </div>
-          <div className="filter-group" role="group" aria-labelledby="filter-power">
+          <div className="filter-group power-filter-group" role="group" aria-labelledby="filter-power">
             <span className="group-label" id="filter-power">
-              توان
+              حداقل توان شارژر
             </span>
             {POWER_FILTERS.map((power) => {
               const pressed = filters.minPowerKw === power.value;
@@ -119,11 +119,18 @@ export function FilterBar({
                   key={power.value}
                   type="button"
                   aria-pressed={pressed}
-                  className={pressed ? "is-on" : ""}
+                  aria-label={`${power.label}، حداقل ${power.summary}`}
+                  className={`power-filter power-filter-${power.level}${pressed ? " is-on" : ""}`}
                   onClick={() => onChange({ ...filters, minPowerKw: pressed ? null : power.value })}
                 >
-                  {pressed && <IconCheck />}
-                  {power.label}
+                  <span className="power-filter-icon">
+                    <IconPowerLevel level={power.level} />
+                  </span>
+                  <span className="power-filter-copy">
+                    <strong>{power.label}</strong>
+                    <small dir="ltr">{power.summary}</small>
+                  </span>
+                  {pressed && <span className="power-filter-check"><IconCheck /></span>}
                 </button>
               );
             })}

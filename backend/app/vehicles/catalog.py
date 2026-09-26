@@ -24,7 +24,8 @@ DATASET_PATH = (
     Path(__file__).resolve().parents[3] / "outputs" / "emapna_ev_dataset" / "emapna_ev_normalized.csv"
 )
 
-STATION_ORDER = ["CCS_2", "GBT_DC", "TYPE_2", "CHADEMO", "GBT_AC", "TYPE_1"]
+# Most → least common in live charging.connectors inventory.
+STATION_ORDER = ["CCS_2", "GBT_DC", "GBT_AC", "TYPE_2", "CHADEMO", "TYPE_1"]
 
 CONNECTORS: dict[str, dict[str, str]] = {
     "AC_GBT": {"display_name": "GB/T AC", "current_type": "AC", "emapna_name": "Car-AC-GB/T", "station_standard": "GBT_AC"},

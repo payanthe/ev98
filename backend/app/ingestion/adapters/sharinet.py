@@ -12,6 +12,7 @@ from datetime import datetime
 import httpx
 
 from app.domain.connectors import map_sharinet_connector
+from app.domain.hours import parse_hours
 from app.domain.status import derive_sharinet_status, map_sharinet_charger_status, map_sharinet_connector_status
 from app.domain.text import kw_to_watts, split_fa_list
 from app.ingestion.http import UpstreamError, request_json
@@ -39,16 +40,13 @@ def _parse_time(value: str | None) -> datetime | None:
         return None
 
 
-def _always_open(work_days: str | None, work_hours: str | None) -> bool | None:
-    days = work_days or ""
-    hours = work_hours or ""
-    if not days.strip() and not hours.strip():
-        return None
-    all_days = "همه روز" in days or "24" in days or "۲۴" in days
-    all_hours = "همه ساع" in hours or "24" in hours or "۲۴" in hours
-    if all_days and all_hours:
-        return True
-    return False
+def _hours_fields(work_days: str | None, work_hours: str | None) -> tuple[bool | None, str | None, dict | None]:
+    if not (work_days or "").strip() and not (work_hours or "").strip():
+        return None, None, None
+    schedule = parse_hours(work_days=work_days, work_hours=work_hours)
+    summary = schedule.raw
+    is_24_7 = True if schedule.is_24_7 else (False if schedule.parseable else None)
+    return is_24_7, summary, schedule.as_dict() if schedule.parseable or schedule.raw else None
 
 
 def _guess_region(address: str | None) -> tuple[str | None, str | None]:
@@ -110,6 +108,7 @@ def normalize_charge_point(list_item: dict, detail: dict | None) -> NormalizedRe
     province, city = _guess_region((detail or {}).get("address"))
     work_days = (detail or {}).get("workDays")
     work_hours = (detail or {}).get("workHours")
+    is_24_7, hours_summary, hours_schedule = _hours_fields(work_days, work_hours)
     plan = (detail or {}).get("plan") if isinstance((detail or {}).get("plan"), dict) else {}
     price = plan.get("cost")
     try:
@@ -134,8 +133,9 @@ def normalize_charge_point(list_item: dict, detail: dict | None) -> NormalizedRe
         province=province,
         operator_name="شارینت",
         is_public=True,
-        is_24_7=_always_open(work_days, work_hours),
-        hours_summary=" · ".join(part for part in (work_days, work_hours) if part) or None,
+        is_24_7=is_24_7,
+        hours_summary=hours_summary,
+        hours_schedule=hours_schedule,
         access_type="public",
         facilities=split_fa_list((detail or {}).get("facilities")),
         image_urls=images,

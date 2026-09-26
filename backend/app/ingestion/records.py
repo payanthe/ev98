@@ -51,6 +51,7 @@ class NormalizedRecord:
     is_public: bool | None = None
     is_24_7: bool | None = None
     hours_summary: str | None = None
+    hours_schedule: dict | None = None
     access_type: str = "unknown"
     facilities: list[str] = field(default_factory=list)
     notes: list[NormalizedNote] = field(default_factory=list)

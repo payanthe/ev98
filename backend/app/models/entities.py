@@ -77,6 +77,7 @@ class Location(Base, TimestampMixin):
     phone: Mapped[str | None] = mapped_column(Text)
     website_url: Mapped[str | None] = mapped_column(Text)
     hours_summary: Mapped[str | None] = mapped_column(Text)
+    hours_schedule: Mapped[dict | None] = mapped_column(JSONB)
     facilities: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list)
     source_notes: Mapped[list] = mapped_column(JSONB, default=list)
     image_urls: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list)

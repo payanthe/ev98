@@ -3,7 +3,7 @@ import type { VehicleCatalog, VehicleVariant } from "../../api/types";
 import { formatNumber } from "../../lib/format";
 import { findVehicle, variantMatches } from "../../lib/vehicles";
 import { BrandMark } from "../../ui/BrandMark";
-import { IconCar, IconClose, IconSearch } from "../../ui/icons";
+import { IconCar, IconCheck, IconClose, IconSearch } from "../../ui/icons";
 
 function batteryLabel(variant: VehicleVariant): string | null {
   if (variant.battery_kwh_min == null) return null;
@@ -15,33 +15,27 @@ function batteryLabel(variant: VehicleVariant): string | null {
   return `${text} کیلووات‌ساعت`;
 }
 
-function specParts(variant: VehicleVariant): string[] {
-  const parts = [variant.powertrain_label];
+function VehicleFacts({ variant }: { variant: VehicleVariant }) {
   const battery = batteryLabel(variant);
-  if (battery) parts.push(battery);
-  if (variant.range_km != null) {
-    parts.push(`${formatNumber(variant.range_km)} کیلومتر`);
-    if (variant.range_standard) parts.push(variant.range_standard);
-  }
-  if (variant.connectors.length > 0) {
-    parts.push(variant.connectors.map((item) => item.display_name).join("، "));
-  }
-  return parts;
-}
-
-function SpecLine({ variant }: { variant: VehicleVariant }) {
-  const parts = specParts(variant);
   return (
-    <span className="vehicle-spec">
-      {parts.map((part, index) => (
-        <span key={`${part}-${index}`}>
-          {index > 0 && (
-            <span className="sep" aria-hidden="true">
-              {" "}
-              ·{" "}
-            </span>
-          )}
-          {part}
+    <span className="vehicle-facts">
+      <span className="vehicle-fact vehicle-powertrain">{variant.powertrain_label}</span>
+      {battery && (
+        <span className="vehicle-fact">
+          <span className="vehicle-fact-label">باتری</span>
+          <bdi>{battery.replace(" کیلووات‌ساعت", " kWh")}</bdi>
+        </span>
+      )}
+      {variant.range_km != null && (
+        <span className="vehicle-fact">
+          <span className="vehicle-fact-label">برد</span>
+          <bdi>{formatNumber(variant.range_km)} km</bdi>
+          {variant.range_standard && <small dir="ltr">{variant.range_standard}</small>}
+        </span>
+      )}
+      {variant.connectors.map((connector) => (
+        <span className="vehicle-fact vehicle-connector" dir="ltr" key={connector.code}>
+          {connector.display_name}
         </span>
       ))}
     </span>
@@ -66,6 +60,9 @@ export function VehiclePicker({
   onRetry: () => void;
 }) {
   const listId = useId();
+  const dialogId = useId();
+  const titleId = useId();
+  const searchId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -85,6 +82,10 @@ export function VehiclePicker({
   }, [catalog, query]);
 
   const flat = useMemo(() => groups.flatMap((group) => group.variants.map((variant) => ({ make: group.make, variant }))), [groups]);
+  const variantIndexes = useMemo(
+    () => new Map(flat.map((item, index) => [item.variant.id, index])),
+    [flat],
+  );
 
   useEffect(() => {
     setActiveIndex(0);
@@ -99,6 +100,13 @@ export function VehiclePicker({
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const active = flat[activeIndex];
+    if (!active) return;
+    document.getElementById(`${listId}-${active.variant.id}`)?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex, flat, listId, open]);
 
   function close(focusTrigger = true) {
     setOpen(false);
@@ -147,19 +155,25 @@ export function VehiclePicker({
         ref={triggerRef}
         className={selected ? "vehicle-trigger is-on" : "vehicle-trigger"}
         aria-expanded={open}
-        aria-controls={open ? "vehicle-dialog" : undefined}
+        aria-controls={open ? dialogId : undefined}
         aria-haspopup="dialog"
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => (open ? close(false) : setOpen(true))}
       >
         {selected ? (
           <>
             <BrandMark icon={selected.make.icon} name={selected.make.name_en} />
-            <span className="vehicle-name">{selected.variant.display_name}</span>
+            <span className="vehicle-trigger-copy">
+              <span className="vehicle-kicker">خودروی من</span>
+              <span className="vehicle-name" dir="ltr">{selected.make.name_en} {selected.variant.model_name}</span>
+            </span>
           </>
         ) : (
           <>
             <IconCar />
-            انتخاب خودرو
+            <span className="vehicle-trigger-copy">
+              <span className="vehicle-name">انتخاب خودروی من</span>
+              <span className="vehicle-kicker">نمایش جایگاه‌های سازگار</span>
+            </span>
           </>
         )}
       </button>
@@ -169,31 +183,50 @@ export function VehiclePicker({
         </button>
       )}
       {open && (
-        <div className="vehicle-panel" id="vehicle-dialog" role="dialog" aria-label="انتخاب خودرو">
-          <div className="vehicle-search">
-            <IconSearch />
-            <input
-              ref={inputRef}
-              role="combobox"
-              aria-autocomplete="list"
-              aria-expanded={flat.length > 0}
-              aria-controls={flat.length > 0 ? listId : undefined}
-              aria-activedescendant={activeId}
-              aria-label="جست‌وجوی خودرو"
-              placeholder="برند، مدل یا واردکننده"
-              value={query}
-              autoComplete="off"
-              spellCheck={false}
-              onChange={(event) => setQuery(event.target.value)}
-              onKeyDown={onKeyDown}
-            />
-            {query && (
-              <button type="button" className="vehicle-clear" aria-label="پاک کردن جست‌وجو" onClick={() => setQuery("")}>
+        <>
+          <div className="vehicle-scrim" aria-hidden="true" onPointerDown={() => close()} />
+          <div className="vehicle-panel" id={dialogId} role="dialog" aria-labelledby={titleId}>
+            <header className="vehicle-panel-head">
+              <div>
+                <h2 id={titleId}>خودروی شما چیست؟</h2>
+                <p>تا فقط شارژرهایی را ببینید که به خودروی شما می‌خورند.</p>
+              </div>
+              <button type="button" className="vehicle-panel-close" aria-label="بستن انتخاب خودرو" onClick={() => close()}>
                 <IconClose />
               </button>
+            </header>
+            <label className="vehicle-search-label" htmlFor={searchId}>جست‌وجوی برند یا مدل</label>
+            <div className="vehicle-search">
+              <IconSearch />
+              <input
+                id={searchId}
+                ref={inputRef}
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={flat.length > 0}
+                aria-controls={flat.length > 0 ? listId : undefined}
+                aria-activedescendant={activeId}
+                placeholder="مثلاً BYD یا E30X"
+                value={query}
+                autoComplete="off"
+                spellCheck={false}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={onKeyDown}
+              />
+              {query && (
+                <button type="button" className="vehicle-clear" aria-label="پاک کردن جست‌وجو" onClick={() => setQuery("")}>
+                  <IconClose />
+                </button>
+              )}
+            </div>
+            {!loading && !error && (
+              <p className="vehicle-results" aria-live="polite">
+                {query
+                  ? `${formatNumber(flat.length)} خودرو پیدا شد`
+                  : `${formatNumber(flat.length)} خودرو از ${formatNumber(groups.length)} برند`}
+              </p>
             )}
-          </div>
-          <div className="vehicle-list">
+            <div className="vehicle-list">
             {loading && <p>در حال خواندن فهرست خودروها…</p>}
             {error && (
               <p role="alert">
@@ -210,28 +243,44 @@ export function VehiclePicker({
                   <li key={group.make.slug}>
                     <p className="vehicle-make">
                       <BrandMark icon={group.make.icon} name={group.make.name_en} />
-                      {group.make.name_fa}
+                      <span className="vehicle-make-names">
+                        <b dir="ltr">{group.make.name_en}</b>
+                        <span>{group.make.name_fa}</span>
+                      </span>
+                      <span className="vehicle-make-count">{formatNumber(group.variants.length)} مدل</span>
                     </p>
                     <ul>
                       {group.variants.map((variant) => {
-                        const index = flat.findIndex((item) => item.variant.id === variant.id);
+                        const index = variantIndexes.get(variant.id) ?? 0;
                         const active = index === activeIndex;
+                        const current = selected?.variant.id === variant.id;
                         return (
                           <li
                             key={variant.id}
                             id={`${listId}-${variant.id}`}
                             role="option"
-                            aria-selected={active}
-                            className={[active ? "is-active" : "", selected?.variant.id === variant.id ? "is-current" : ""]
+                            aria-selected={current}
+                            className={[active ? "is-active" : "", current ? "is-current" : ""]
                               .filter(Boolean)
                               .join(" ")}
                             onMouseEnter={() => setActiveIndex(index)}
                             onMouseDown={(event) => event.preventDefault()}
                             onClick={() => choose(variant)}
                           >
-                            <b>{variant.model_name}{variant.model_year ? ` ${variant.model_year}` : ""}</b>
-                            <SpecLine variant={variant} />
-                            {variant.importer_name_fa && <span>{variant.importer_name_fa}</span>}
+                            <span className="vehicle-option-title">
+                              <b>
+                                {variant.model_name}
+                                {variant.model_year && <bdi className="vehicle-year">{variant.model_year}</bdi>}
+                              </b>
+                              {current && <span className="vehicle-current"><IconCheck /> انتخاب‌شده</span>}
+                            </span>
+                            <VehicleFacts variant={variant} />
+                            {variant.importer_name_fa && (
+                              <span className="vehicle-importer">
+                                <span>واردکننده</span>
+                                <b>{variant.importer_name_fa}</b>
+                              </span>
+                            )}
                             {variant.warnings[0] && <span className="vehicle-warning">{variant.warnings[0]}</span>}
                           </li>
                         );
@@ -241,11 +290,12 @@ export function VehiclePicker({
                 ))}
               </ul>
             )}
+            </div>
+            <p className="vehicle-note">
+              با انتخاب خودرو، فیلتر کانکتورها خودکار تنظیم می‌شود. هر زمان بخواهید می‌توانید خودرو را تغییر دهید.
+            </p>
           </div>
-          <p className="vehicle-note">
-            داده از eMapna است. نقشه جایگاه‌هایی را نشان می‌دهد که حداقل یک درگاه مشترک با خودرو داشته باشند.
-          </p>
-        </div>
+        </>
       )}
     </div>
   );

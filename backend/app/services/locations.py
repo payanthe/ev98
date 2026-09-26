@@ -7,7 +7,18 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.domain.connectors import power_family
+from app.domain.hours import resolve_hours
 from app.domain.status import AVAILABILITY_LABELS, STANDARD_LABELS, STATUS_LABELS, summarize_statuses
+
+# Most → least common in live charging.connectors inventory.
+_STANDARD_ORDER = {
+    "CCS_2": 0,
+    "GBT_DC": 1,
+    "GBT_AC": 2,
+    "TYPE_2": 3,
+    "CHADEMO": 4,
+    "TYPE_1": 5,
+}
 from app.domain.text import haversine_m, normalize_fa
 from app.models.base import utcnow
 from app.models.entities import Address, ChargingPool, Evse, ExternalRecord, Location
@@ -57,7 +68,7 @@ def _standards(evses: list[Evse]) -> list[str]:
         for connector in evse.connectors:
             if connector.standard not in seen:
                 seen.append(connector.standard)
-    return seen
+    return sorted(seen, key=lambda item: _STANDARD_ORDER.get(item, 99))
 
 
 def _power_types(evses: list[Evse]) -> list[str]:
@@ -331,6 +342,13 @@ def get_location(session, location_id) -> LocationDetail | None:
         if record.is_present_at_source and record.source is not None
     ]
     images = [url for url in (location.image_urls or []) if str(url).startswith("https://")]
+    hours = resolve_hours(
+        hours_summary=location.hours_summary,
+        is_24_7=location.is_24_7,
+        hours_schedule=location.hours_schedule,
+        now=now,
+        timezone=location.timezone or "Asia/Tehran",
+    )
     return LocationDetail(
         id=location.id,
         name=location.canonical_name_fa,
@@ -344,9 +362,13 @@ def get_location(session, location_id) -> LocationDetail | None:
         phone=location.phone,
         website=location.website_url,
         is_public=location.is_public,
-        is_24_7=location.is_24_7,
+        is_24_7=hours.is_24_7,
         is_reservable=location.is_reservable,
-        hours_summary=location.hours_summary,
+        hours_summary=hours.hours_summary,
+        hours_label=hours.hours_label,
+        open_now=hours.open_now,
+        open_now_label=hours.open_now_label,
+        hours_schedule=hours.schedule,
         facilities=list(location.facilities or []),
         notes=_notes(location),
         images=images,

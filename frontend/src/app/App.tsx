@@ -149,22 +149,23 @@ export function App() {
         selectedId={selectedId}
         flyTarget={flyTarget}
         panelOpen={Boolean(selectedId)}
+        autoCenterOnLocate={!selectedId}
         onBounds={setBounds}
         onSelect={onMapSelect}
         onNotice={setNotice}
       />
       <ul className="legend" aria-label="راهنمای وضعیت ایستگاه">
         <li>
-          <i className="pin pin-available" aria-hidden="true" /> آزاد
+          <img src="/map-pins/station-available.svg" alt="" aria-hidden="true" /> آزاد
         </li>
         <li>
-          <i className="pin pin-charging" aria-hidden="true" /> در حال شارژ
+          <img src="/map-pins/station-busy.svg" alt="" aria-hidden="true" /> در حال شارژ
         </li>
         <li>
-          <i className="pin pin-unavailable" aria-hidden="true" /> خارج از دسترس
+          <img src="/map-pins/station-offline.svg" alt="" aria-hidden="true" /> خارج از دسترس
         </li>
         <li>
-          <i className="pin pin-stale" aria-hidden="true" /> منقضی
+          <img src="/map-pins/station-fast.svg" alt="" aria-hidden="true" /> شارژ سریع
         </li>
       </ul>
       {selectedId && (

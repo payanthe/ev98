@@ -1,9 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { LocationDetail, VehicleVariant } from "../../api/types";
 import { formatNumber, formatPower, formatWhen, sourceLabel } from "../../lib/format";
 import { stationCompatibility } from "../../lib/vehicles";
 import { ConnectorMark } from "../../ui/ConnectorMark";
-import { IconClose } from "../../ui/icons";
+import { IconClose, IconOperator, IconSources } from "../../ui/icons";
 import { ChargeEstimate } from "./ChargeEstimate";
 
 function plugsOf(location: LocationDetail) {
@@ -52,8 +52,16 @@ export function DetailPanel({
   const headingRef = useRef<HTMLHeadingElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
+  const sourcesToggleRef = useRef<HTMLButtonElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const [sourcesOpen, setSourcesOpen] = useState(false);
+  const sourcesPanelId = useId();
+  const sourcesTitleId = useId();
+
+  useEffect(() => {
+    setSourcesOpen(false);
+  }, [location?.id]);
 
   useEffect(() => {
     if (error) errorRef.current?.focus();
@@ -65,11 +73,16 @@ export function DetailPanel({
     function onKey(event: KeyboardEvent) {
       if (event.key !== "Escape" || document.getElementById("sources-dialog") || document.getElementById("vehicle-dialog")) return;
       event.preventDefault();
+      if (sourcesOpen) {
+        setSourcesOpen(false);
+        sourcesToggleRef.current?.focus();
+        return;
+      }
       onCloseRef.current();
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, []);
+  }, [sourcesOpen]);
 
   const site = location ? safeHttp(location.website) : null;
   const plugs = location ? plugsOf(location) : [];
@@ -90,11 +103,49 @@ export function DetailPanel({
     >
       <div className="detail-bar">
         <p id="detail-label">جزئیات ایستگاه</p>
-        <button type="button" ref={closeRef} onClick={onClose}>
-          <IconClose />
-          بستن
-        </button>
+        <div className="detail-bar-actions">
+          {location && (
+            <button
+              type="button"
+              ref={sourcesToggleRef}
+              className="detail-sources-toggle"
+              aria-label="منابع و مجوز"
+              aria-expanded={sourcesOpen}
+              aria-controls={sourcesOpen ? sourcesPanelId : undefined}
+              onClick={() => setSourcesOpen((open) => !open)}
+            >
+              <IconSources />
+            </button>
+          )}
+          <button type="button" ref={closeRef} className="detail-close" aria-label="بستن" onClick={onClose}>
+            <IconClose />
+          </button>
+        </div>
       </div>
+      {location && sourcesOpen && (
+        <section
+          id={sourcesPanelId}
+          className="detail-sources-panel"
+          role="region"
+          aria-labelledby={sourcesTitleId}
+        >
+          <div className="detail-sources-head">
+            <h3 id={sourcesTitleId}>منابع و مجوز</h3>
+            <button type="button" className="detail-sources-close" aria-label="بستن منابع و مجوز" onClick={() => setSourcesOpen(false)}>
+              <IconClose />
+            </button>
+          </div>
+          {location.sources.map((source) => (
+            <p key={`${source.code}-${source.external_id}`} className="source-line">
+              <b>{source.name}</b>
+              <span>شناسه {source.external_id}</span>
+              <span>آخرین مشاهده {formatWhen(source.last_seen_at)}</span>
+              {source.attribution && <span>{source.attribution}</span>}
+            </p>
+          ))}
+          <p className="muted">امتیاز کیفیت داده: {location.data_quality_score == null ? "—" : formatNumber(location.data_quality_score)}</p>
+        </section>
+      )}
       {loading && (
         <div className="skeleton" aria-hidden="true">
           <span />
@@ -114,6 +165,17 @@ export function DetailPanel({
           <h2 id="location-title" ref={headingRef} tabIndex={-1}>
             {location.name}
           </h2>
+          {location.operator_name && (
+            <p className="operator-badge">
+              <span className="operator-badge-icon" aria-hidden="true">
+                <IconOperator />
+              </span>
+              <span className="operator-badge-copy">
+                <span className="operator-badge-label">اپراتور شبکه</span>
+                <strong className="operator-badge-name">{location.operator_name}</strong>
+              </span>
+            </p>
+          )}
           {compatibility === "yes" && vehicle && <p className="compat">سازگار با {vehicle.display_name}</p>}
           {compatibility === "no" && vehicle && (
             <p className="compat is-off">این جایگاه با {vehicle.display_name} درگاه مشترک ندارد.</p>
@@ -135,8 +197,10 @@ export function DetailPanel({
             </div>
           )}
           <div className="chips">
-            {location.operator_name && <span>{location.operator_name}</span>}
             <span>{formatPower(location.max_power_kw)}</span>
+            {location.open_now != null && location.open_now_label && (
+              <span className={`hours-chip is-${location.open_now ? "open" : "closed"}`}>{location.open_now_label}</span>
+            )}
             {location.is_24_7 && <span>شبانه‌روزی</span>}
             {location.is_reservable && <span>قابل رزرو</span>}
             {location.is_public === false && <span>غیرعمومی</span>}
@@ -158,7 +222,9 @@ export function DetailPanel({
           {location.is_stale && (
             <p className="note">وضعیت زنده منقضی شده و این ایستگاه به‌عنوان آزاد نشان داده نمی‌شود.</p>
           )}
-          {location.hours_summary && <p>ساعت کار: {location.hours_summary}</p>}
+          {(location.hours_label || location.hours_summary) && (
+            <p className="hours-line">ساعت کار: {location.hours_label || location.hours_summary}</p>
+          )}
           {location.price && (
             <div className="price">
               <strong>
@@ -256,18 +322,6 @@ export function DetailPanel({
                 {evse.connectors.length === 0 && <p className="muted">جزئیات کانکتور هنوز دریافت نشده.</p>}
               </article>
             ))}
-          </section>
-          <section>
-            <h3>منابع و مجوز</h3>
-            {location.sources.map((source) => (
-              <p key={`${source.code}-${source.external_id}`} className="source-line">
-                <b>{source.name}</b>
-                <span>شناسه {source.external_id}</span>
-                <span>آخرین مشاهده {formatWhen(source.last_seen_at)}</span>
-                {source.attribution && <span>{source.attribution}</span>}
-              </p>
-            ))}
-            <p className="muted">امتیاز کیفیت داده: {location.data_quality_score == null ? "—" : formatNumber(location.data_quality_score)}</p>
           </section>
         </div>
       )}

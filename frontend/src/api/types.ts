@@ -83,6 +83,16 @@ export type LocationDetail = {
   is_24_7: boolean | null;
   is_reservable: boolean | null;
   hours_summary: string | null;
+  hours_label: string | null;
+  open_now: boolean | null;
+  open_now_label: string | null;
+  hours_schedule: {
+    is_24_7?: boolean;
+    intervals?: { weekdays: number[]; start: string; end: string }[];
+    label?: string | null;
+    parseable?: boolean;
+    raw?: string | null;
+  } | null;
   facilities: string[];
   notes: {
     source_code: string;

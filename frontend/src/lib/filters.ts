@@ -1,18 +1,19 @@
 import type { LocationFilters } from "../api/types";
 
+/** Ordered by frequency in live station data (most → least). */
 export const CONNECTOR_FILTERS = [
   { id: "CCS_2", label: "CCS2" },
   { id: "GBT_DC", label: "GB/T DC" },
+  { id: "GBT_AC", label: "GB/T AC" },
   { id: "TYPE_2", label: "Type 2" },
   { id: "CHADEMO", label: "CHAdeMO" },
-  { id: "GBT_AC", label: "GB/T AC" },
   { id: "TYPE_1", label: "Type 1" },
 ] as const;
 
 export const POWER_FILTERS = [
-  { value: 22, label: "+۲۲" },
-  { value: 50, label: "+۵۰" },
-  { value: 120, label: "+۱۲۰" },
+  { value: 30, label: "سریع", summary: "۳۰+ kW", level: 1 },
+  { value: 60, label: "سریع‌تر", summary: "۶۰+ kW", level: 2 },
+  { value: 120, label: "پرقدرت", summary: "۱۲۰+ kW", level: 3 },
 ] as const;
 
 export const EMPTY_FILTERS: LocationFilters = {
@@ -51,6 +52,12 @@ function writeStoredVehicle(vehicleId: string | null) {
 const CONNECTOR_IDS = new Set<string>(CONNECTOR_FILTERS.map((item) => item.id));
 const POWER_VALUES = new Set<number>(POWER_FILTERS.map((item) => item.value));
 
+function normalizePower(value: number): number | null {
+  if (value === 22) return 30;
+  if (value === 50) return 60;
+  return POWER_VALUES.has(value) ? value : null;
+}
+
 export function activeFilterCount(filters: LocationFilters): number {
   return (
     filters.connectors.length +
@@ -71,7 +78,7 @@ export function filterSummary(filters: LocationFilters, vehicleLabel?: string | 
     }
   }
   const power = POWER_FILTERS.find((item) => item.value === filters.minPowerKw);
-  if (power) parts.push(power.label);
+  if (power) parts.push(power.summary);
   if (filters.availability === "available") parts.push("فقط آزاد");
   if (filters.source === "sharinet") parts.push("شارینت");
   return parts.join("، ");
@@ -84,7 +91,7 @@ export function readMapState(): { selectedId: string | null; filters: LocationFi
     selectedId: params.get("location"),
     filters: {
       connectors: params.getAll("connector").filter((id) => CONNECTOR_IDS.has(id)),
-      minPowerKw: POWER_VALUES.has(power) ? power : null,
+      minPowerKw: normalizePower(power),
       source: params.get("source") === "sharinet" ? "sharinet" : null,
       availability: params.get("availability") === "available" ? "available" : null,
       vehicleId: validVehicleId(params.get("vehicle")) ?? readStoredVehicle(),

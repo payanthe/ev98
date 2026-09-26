@@ -4,6 +4,5 @@
   <g filter="url(#s)">
     <circle cx="32" cy="31" r="27" fill="#DCFCE7" stroke="#fff" stroke-width="3"/>
     <circle cx="32" cy="31" r="20" fill="#16A34A"/>
-    <text x="32" y="36" fill="#fff" font-family="Arial, sans-serif" font-size="15" font-weight="700" text-anchor="middle">12</text>
   </g>
 </svg>

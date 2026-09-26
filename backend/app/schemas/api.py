@@ -111,6 +111,10 @@ class LocationDetail(BaseModel):
     is_24_7: bool | None = None
     is_reservable: bool | None = None
     hours_summary: str | None = None
+    hours_label: str | None = None
+    open_now: bool | None = None
+    open_now_label: str | None = None
+    hours_schedule: dict | None = None
     facilities: list[str]
     notes: list[SourceNoteOut]
     images: list[str]

@@ -9,6 +9,7 @@ from __future__ import annotations
 import httpx
 
 from app.domain.connectors import OCM_CONNECTION_IDS, OCM_CURRENT, map_connector_title
+from app.domain.hours import parse_hours
 from app.domain.status import OCM_STATUS, REMOVED, UNKNOWN
 from app.domain.text import kw_to_watts
 from app.ingestion.http import UpstreamError, request_json
@@ -121,6 +122,7 @@ def normalize_poi(
     provider = _nested_title(poi.get("DataProvider"))
     attribution = ATTRIBUTION if not provider else f"{ATTRIBUTION} ارائه‌دهنده: {provider}."
     annotations = extract_ocm_annotations(poi)
+    hours = parse_hours(annotations.hours_summary, is_24_7=annotations.is_24_7)
 
     return NormalizedRecord(
         source_code="ocm",
@@ -136,8 +138,9 @@ def normalize_poi(
         phone=address.get("ContactTelephone1"),
         website=address.get("RelatedURL"),
         is_public=is_public,
-        is_24_7=annotations.is_24_7,
+        is_24_7=True if hours.is_24_7 else annotations.is_24_7,
         hours_summary=annotations.hours_summary,
+        hours_schedule=hours.as_dict() if hours.parseable or hours.raw else None,
         access_type=access_type,
         facilities=list(annotations.facilities or []),
         notes=annotations.notes,

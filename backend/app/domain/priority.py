@@ -10,6 +10,7 @@ FIELD_PRIORITY: dict[str, dict[str, int]] = {
     "is_public": {"ocm": 80, "sharinet": 75, "abrp": 60},
     "is_24_7": {"sharinet": 70, "ocm": 65, "abrp": 40},
     "hours_summary": {"sharinet": 80, "ocm": 50, "abrp": 40},
+    "hours_schedule": {"sharinet": 80, "ocm": 50, "abrp": 40},
     "facilities": {"sharinet": 80, "abrp": 55, "ocm": 40},
     "images": {"sharinet": 80, "ocm": 70, "abrp": 60},
     "is_reservable": {"sharinet": 85, "ocm": 50, "abrp": 45},

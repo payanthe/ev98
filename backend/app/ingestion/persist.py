@@ -144,6 +144,15 @@ def apply_location_fields(session, location: Location, source_code: str, record:
         location.is_24_7 = record.is_24_7
     if record.hours_summary and claim(provenance, "hours_summary", source_code):
         location.hours_summary = record.hours_summary
+        if record.hours_schedule:
+            location.hours_schedule = dict(record.hours_schedule)
+            flag_modified(location, "hours_schedule")
+            claim(provenance, "hours_schedule", source_code)
+        elif claim(provenance, "hours_schedule", source_code):
+            location.hours_schedule = None
+    elif record.hours_schedule and claim(provenance, "hours_schedule", source_code):
+        location.hours_schedule = dict(record.hours_schedule)
+        flag_modified(location, "hours_schedule")
     if record.facilities and claim(provenance, "facilities", source_code):
         location.facilities = list(record.facilities)
     if record.image_urls and claim(provenance, "images", source_code):

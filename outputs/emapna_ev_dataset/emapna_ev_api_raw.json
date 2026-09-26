@@ -1,0 +1,752 @@
+{
+  "source": "https://gen.emapna.com/api/evList/v2",
+  "fetchedAt": "2026-09-26T07:48:12.527Z",
+  "count": 44,
+  "evList": [
+    {
+      "_id": "6a13d1305e826116505d173f",
+      "brand": "Volkswagen",
+      "model": "ID4 crozz",
+      "batterySpecs": "55.7 kwh",
+      "chargeLimit": null,
+      "priority": 1,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": "Mammut Khodro\nبسته به واردکننده متفاوت است. لطفا با کارشناس بررسی شود.",
+      "operatingVoltage": null,
+      "range": "442 km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d1740",
+      "brand": "Audi",
+      "model": "Q5 e-tron",
+      "batterySpecs": "83.4 kwh",
+      "chargeLimit": null,
+      "priority": 2,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": "Moin Khodro",
+      "operatingVoltage": null,
+      "range": "550 km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d1741",
+      "brand": "Arizo",
+      "model": "ev5 (Arizo5)",
+      "batterySpecs": "53.6 kwh",
+      "chargeLimit": null,
+      "priority": 3,
+      "connectors": [
+        "Car-AC-Type2",
+        "Car-DC-CCS2"
+      ],
+      "evCarType": "BEV",
+      "importer": "Modiran Khodro",
+      "operatingVoltage": null,
+      "range": "401 km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d1742",
+      "brand": "Honda",
+      "model": "ENS1",
+      "batterySpecs": "68.8 kwh",
+      "chargeLimit": "11 kW AC",
+      "priority": 4,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": "Moin Khodro",
+      "operatingVoltage": "370",
+      "range": "510 km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d1743",
+      "brand": "JAC",
+      "model": "EJ7 (J7)",
+      "batterySpecs": "50 kwh",
+      "chargeLimit": null,
+      "priority": 5,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": "Kerman Motor",
+      "operatingVoltage": null,
+      "range": "400 km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d1744",
+      "brand": "Volkswagen",
+      "model": "ID UNYX",
+      "batterySpecs": "80.2 kwh",
+      "chargeLimit": null,
+      "priority": 6,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": null,
+      "operatingVoltage": null,
+      "range": null,
+      "rangeStandard": null
+    },
+    {
+      "_id": "6a13d1305e826116505d1745",
+      "brand": "FAW",
+      "model": "Bestune nat",
+      "batterySpecs": "54.5 kwh",
+      "chargeLimit": null,
+      "priority": 7,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": "Iran Khodro",
+      "operatingVoltage": null,
+      "range": "420 Km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d1746",
+      "brand": "Luna",
+      "model": "JMEV Yi",
+      "batterySpecs": "43.9 kwh",
+      "chargeLimit": null,
+      "priority": 8,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": "Iran Khodro",
+      "operatingVoltage": null,
+      "range": "400 km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d1747",
+      "brand": "TOYOTA",
+      "model": "BZ3(BZ3X)",
+      "batterySpecs": "49 & 65 kwh",
+      "chargeLimit": null,
+      "priority": 9,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": " Barsavosh",
+      "operatingVoltage": null,
+      "range": null,
+      "rangeStandard": null
+    },
+    {
+      "_id": "6a13d1305e826116505d1748",
+      "brand": "TOYOTA",
+      "model": "BZ4 (BZ4X)",
+      "batterySpecs": "66 & 72 kwh",
+      "chargeLimit": null,
+      "priority": 10,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": " Barsavosh",
+      "operatingVoltage": null,
+      "range": null,
+      "rangeStandard": null
+    },
+    {
+      "_id": "6a13d1305e826116505d1749",
+      "brand": "Skywell",
+      "model": "ET5",
+      "batterySpecs": "72 kwh",
+      "chargeLimit": "11 kW AC",
+      "priority": 11,
+      "connectors": [
+        "Car-AC-Type2",
+        "Car-DC-CCS2"
+      ],
+      "evCarType": "BEV",
+      "importer": "Nebka",
+      "operatingVoltage": null,
+      "range": "520 km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d174a",
+      "brand": "Fownix",
+      "model": "F8 Pro e+",
+      "batterySpecs": "19.27 kwh",
+      "chargeLimit": null,
+      "priority": 12,
+      "connectors": [
+        "Car-AC-Type2",
+        "Car-DC-CCS2"
+      ],
+      "evCarType": "PHEV",
+      "importer": "Modiran Khodro",
+      "operatingVoltage": "350",
+      "range": "75 km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d174b",
+      "brand": "Venucia",
+      "model": "V-Online -DD-i",
+      "batterySpecs": "18.4 kwh",
+      "chargeLimit": null,
+      "priority": 13,
+      "connectors": [
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "PHEV",
+      "importer": "Tigard Motor",
+      "operatingVoltage": null,
+      "range": "110 KM",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d174c",
+      "brand": "Venucia",
+      "model": "D60EV PLUS",
+      "batterySpecs": "47 kwh",
+      "chargeLimit": null,
+      "priority": 14,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": "Max Motor",
+      "operatingVoltage": null,
+      "range": "420 Km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d174d",
+      "brand": "Mitsubishi",
+      "model": "Outlander",
+      "batterySpecs": "12 kwh",
+      "chargeLimit": null,
+      "priority": 15,
+      "connectors": [
+        "Car-AC-Type1",
+        "Car-DC-CHAdeMO"
+      ],
+      "evCarType": "PHEV",
+      "importer": "Arian Motor",
+      "operatingVoltage": null,
+      "range": "55 km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d174e",
+      "brand": "Hongchi",
+      "model": "EQM5",
+      "batterySpecs": "54 Kwh",
+      "chargeLimit": "48 Kw",
+      "priority": 16,
+      "connectors": [
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": "Bahman Motor",
+      "operatingVoltage": "750",
+      "range": "431 km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d174f",
+      "brand": "avatr",
+      "model": "avatr11",
+      "batterySpecs": "116 kwh",
+      "chargeLimit": null,
+      "priority": 17,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": "Bahman Motor",
+      "operatingVoltage": null,
+      "range": null,
+      "rangeStandard": null
+    },
+    {
+      "_id": "6a13d1305e826116505d1750",
+      "brand": "Skywell",
+      "model": "Hybrid ",
+      "batterySpecs": "21.86 kwh",
+      "chargeLimit": null,
+      "priority": 18,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-CCS2"
+      ],
+      "evCarType": "PHEV",
+      "importer": "Nebka",
+      "operatingVoltage": null,
+      "range": "115 km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d1751",
+      "brand": "BMW",
+      "model": "iX1",
+      "batterySpecs": "64.7 kwh",
+      "chargeLimit": "22 KW AC",
+      "priority": 19,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": "Persia Khodro",
+      "operatingVoltage": null,
+      "range": "420 Km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d1752",
+      "brand": "VOYAH",
+      "model": "free-2023",
+      "batterySpecs": "43 kwh",
+      "chargeLimit": null,
+      "priority": 20,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": "Soroush Motor\n",
+      "operatingVoltage": null,
+      "range": null,
+      "rangeStandard": null
+    },
+    {
+      "_id": "6a13d1305e826116505d1753",
+      "brand": "MG",
+      "model": "MG4",
+      "batterySpecs": "64 kwh",
+      "chargeLimit": null,
+      "priority": 21,
+      "connectors": [
+        "Car-AC-Type2",
+        "Car-DC-CCS2"
+      ],
+      "evCarType": "BEV",
+      "importer": "Soroush Motor",
+      "operatingVoltage": null,
+      "range": null,
+      "rangeStandard": null
+    },
+    {
+      "_id": "6a13d1305e826116505d1754",
+      "brand": "Audi",
+      "model": "Q4 e-tron",
+      "batterySpecs": "84.8 kwh",
+      "chargeLimit": null,
+      "priority": 22,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": "Nadin Khodro",
+      "operatingVoltage": null,
+      "range": "560 km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d1755",
+      "brand": "Fownix",
+      "model": "FX EV",
+      "batterySpecs": "61.2 kwh",
+      "chargeLimit": null,
+      "priority": 23,
+      "connectors": [
+        "Car-AC-Type2",
+        "Car-DC-CCS2"
+      ],
+      "evCarType": "BEV",
+      "importer": "Modiran Khodro",
+      "operatingVoltage": null,
+      "range": "450 Km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d1756",
+      "brand": "BYD",
+      "model": "Song Plus",
+      "batterySpecs": "18.3 kwh",
+      "chargeLimit": "3.3 KW AC",
+      "priority": 24,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "PHEV",
+      "importer": "Bahman Motor",
+      "operatingVoltage": null,
+      "range": "110 Km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d1757",
+      "brand": "Hyundai",
+      "model": "IoniQ",
+      "batterySpecs": "72.6 kwh",
+      "chargeLimit": null,
+      "priority": 25,
+      "connectors": [
+        "Car-AC-Type2",
+        "Car-DC-CCS2"
+      ],
+      "evCarType": "BEV",
+      "importer": "Hermes Khodro",
+      "operatingVoltage": null,
+      "range": "450 Km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d1758",
+      "brand": "Mercedes Benz",
+      "model": "EQB",
+      "batterySpecs": "66 kwh",
+      "chargeLimit": null,
+      "priority": 26,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": "Rasa Motor",
+      "operatingVoltage": null,
+      "range": null,
+      "rangeStandard": null
+    },
+    {
+      "_id": "6a13d1305e826116505d1759",
+      "brand": "Mercedes Benz",
+      "model": "EQA",
+      "batterySpecs": "66 kwh",
+      "chargeLimit": null,
+      "priority": 27,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": "Rasa Motor",
+      "operatingVoltage": null,
+      "range": null,
+      "rangeStandard": null
+    },
+    {
+      "_id": "6a13d1305e826116505d175a",
+      "brand": "Mercedes Benz",
+      "model": "EQE",
+      "batterySpecs": "96 kwh",
+      "chargeLimit": null,
+      "priority": 28,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": "Rasa Motor",
+      "operatingVoltage": null,
+      "range": null,
+      "rangeStandard": null
+    },
+    {
+      "_id": "6a13d1305e826116505d175b",
+      "brand": "BYD",
+      "model": "QIN L",
+      "batterySpecs": "15 kwh",
+      "chargeLimit": null,
+      "priority": 29,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "PHEV",
+      "importer": "Tigard Motor",
+      "operatingVoltage": null,
+      "range": "110 Km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d175c",
+      "brand": "Volkswagen",
+      "model": "ID4 Unyx",
+      "batterySpecs": "80.2 kwh",
+      "chargeLimit": null,
+      "priority": 30,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": "Mammut Khodro\nبسته به واردکننده متفاوت است. لطفا با کارشناس بررسی شود.",
+      "operatingVoltage": null,
+      "range": "614 Km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d175d",
+      "brand": "Leap Motor",
+      "model": "T03",
+      "batterySpecs": "42 kwh",
+      "chargeLimit": null,
+      "priority": 31,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "HEV",
+      "importer": "Shetabran Khodro",
+      "operatingVoltage": null,
+      "range": "420 Km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d175e",
+      "brand": "Eres",
+      "model": "M5",
+      "batterySpecs": "40 kwh",
+      "chargeLimit": null,
+      "priority": 32,
+      "connectors": [
+        "Car-AC-Type2",
+        "Car-DC-CCS2"
+      ],
+      "evCarType": "EREV",
+      "importer": "Mammut Khodro",
+      "operatingVoltage": null,
+      "range": "1260 Km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d175f",
+      "brand": "BMW",
+      "model": "iX3",
+      "batterySpecs": "74 kwh",
+      "chargeLimit": "7.4 KW AC",
+      "priority": 33,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": "Persia Khodro",
+      "operatingVoltage": null,
+      "range": "500 Km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d1760",
+      "brand": "Dong Feng",
+      "model": "E70",
+      "batterySpecs": "47.5 kwh",
+      "chargeLimit": null,
+      "priority": 34,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": "Iran Khodro",
+      "operatingVoltage": null,
+      "range": "400 Km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d1761",
+      "brand": "VOYAH",
+      "model": "Free -2025",
+      "batterySpecs": "43 kwh",
+      "chargeLimit": null,
+      "priority": 35,
+      "connectors": [
+        "Car-AC-Type2",
+        "Car-DC-CCS2"
+      ],
+      "evCarType": "EREV",
+      "importer": "Soroush Motor",
+      "operatingVoltage": null,
+      "range": "259 Km",
+      "rangeStandard": null
+    },
+    {
+      "_id": "6a13d1305e826116505d1762",
+      "brand": "Fownix",
+      "model": "F7 Pro e+",
+      "batterySpecs": "19.27 kwh",
+      "chargeLimit": null,
+      "priority": 36,
+      "connectors": [
+        "[\"Car-AC-Type2\",-\"]"
+      ],
+      "evCarType": "PHEV",
+      "importer": "Modiran Khodro",
+      "operatingVoltage": null,
+      "range": "75 km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d1763",
+      "brand": "Erx5",
+      "model": "Roewe",
+      "batterySpecs": "12.4 kwh",
+      "chargeLimit": null,
+      "priority": 37,
+      "connectors": [
+        "Car-AC-GB/T",
+        "-"
+      ],
+      "evCarType": "PHEV",
+      "importer": "Pars Khodro",
+      "operatingVoltage": null,
+      "range": "60 km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d1764",
+      "brand": "AION V plus",
+      "model": "GAC",
+      "batterySpecs": "75 kwh",
+      "chargeLimit": null,
+      "priority": 38,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": "Police-taxi driver",
+      "operatingVoltage": null,
+      "range": "650 km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d1765",
+      "brand": "AION S plus",
+      "model": "GAC",
+      "batterySpecs": "58 kwh",
+      "chargeLimit": null,
+      "priority": 39,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": "Police-taxi driver",
+      "operatingVoltage": null,
+      "range": "500 km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d1766",
+      "brand": "G6",
+      "model": "XPENG",
+      "batterySpecs": "68 kwh",
+      "chargeLimit": null,
+      "priority": 40,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": "Shiran Volt",
+      "operatingVoltage": null,
+      "range": "650 km",
+      "rangeStandard": "CLTC"
+    },
+    {
+      "_id": "6a13d1305e826116505d1767",
+      "brand": "Changan",
+      "model": "Eado ev460",
+      "batterySpecs": "47.8 kwh",
+      "chargeLimit": null,
+      "priority": 41,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": "Saipa",
+      "operatingVoltage": null,
+      "range": "460 km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d1768",
+      "brand": "Changan",
+      "model": "Nevo A05",
+      "batterySpecs": "18.4 kwh",
+      "chargeLimit": null,
+      "priority": 42,
+      "connectors": [
+        "Car-AC-Type2",
+        "Car-DC-CCS2"
+      ],
+      "evCarType": "PHEV",
+      "importer": "Farda Motors",
+      "operatingVoltage": null,
+      "range": "115 km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d1769",
+      "brand": "VOLVO ",
+      "model": "EX30",
+      "batterySpecs": "66 kwh",
+      "chargeLimit": null,
+      "priority": 43,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": "Aftab Khodro",
+      "operatingVoltage": null,
+      "range": "590 Km",
+      "rangeStandard": "NEDC"
+    },
+    {
+      "_id": "6a13d1305e826116505d176a",
+      "brand": "Mazda",
+      "model": "EZ-6",
+      "batterySpecs": "68.8 kwh",
+      "chargeLimit": null,
+      "priority": 44,
+      "connectors": [
+        "Car-AC-GB/T",
+        "Car-DC-GB/T"
+      ],
+      "evCarType": "BEV",
+      "importer": "Aftab Khodro",
+      "operatingVoltage": null,
+      "range": "600 Km",
+      "rangeStandard": "NEDC"
+    }
+  ]
+}

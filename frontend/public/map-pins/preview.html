@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>پیش‌نمایش پین‌های ایستگاه شارژ</title>
+<style>
+  *{box-sizing:border-box}body{margin:0;background:#f1f5f9;color:#0f172a;font-family:Tahoma,Arial,sans-serif}main{max-width:980px;margin:auto;padding:48px 24px}h1{margin:0 0 8px;font-size:28px}p{color:#64748b;margin:0 0 32px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:16px}.card{min-height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:#fff;border:1px solid #e2e8f0;border-radius:18px;box-shadow:0 4px 16px #0f172a0a}.card img{width:56px;height:70px;object-fit:contain}.card.cluster img{width:70px}.card span{font-size:14px;font-weight:700}.map{margin-top:28px;min-height:300px;position:relative;overflow:hidden;border-radius:24px;background-color:#dbeafe;background-image:linear-gradient(25deg,transparent 47%,#fff 48%,#fff 52%,transparent 53%),linear-gradient(115deg,transparent 47%,#fff 48%,#fff 52%,transparent 53%);background-size:110px 90px}.map:before,.map:after{content:"";position:absolute;background:#bbf7d0;border-radius:50%}.map:before{width:290px;height:160px;left:-40px;top:35px}.map:after{width:260px;height:190px;right:-30px;bottom:-50px}.pin{position:absolute;z-index:2;width:48px}.p1{left:18%;top:18%}.p2{left:43%;top:50%}.p3{left:68%;top:15%}.p4{left:81%;top:54%}.p5{left:53%;top:9%}
+</style>
+<main><h1>پین‌های ایستگاه شارژ</h1><p>نمونهٔ اولیه برای نمایش وضعیت ایستگاه‌ها روی نقشه</p><section class="grid">
+  <div class="card"><img src="station-available.svg"><span>آزاد</span></div><div class="card"><img src="station-busy.svg"><span>اشغال</span></div><div class="card"><img src="station-fast.svg"><span>شارژ سریع</span></div><div class="card"><img src="station-offline.svg"><span>آفلاین</span></div><div class="card"><img src="station-featured.svg"><span>منتخب</span></div><div class="card cluster"><img src="station-cluster.svg"><span>خوشه</span></div>
+</section><section class="map"><img class="pin p1" src="station-available.svg"><img class="pin p2" src="station-busy.svg"><img class="pin p3" src="station-fast.svg"><img class="pin p4" src="station-offline.svg"><img class="pin p5" src="station-featured.svg"></section></main>
+</html>

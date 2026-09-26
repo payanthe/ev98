@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="60" viewBox="0 0 48 60" fill="none" role="img" aria-labelledby="title">
+  <title id="title">شارژر سریع</title>
+  <defs><filter id="s" x="-25%" y="-20%" width="150%" height="160%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#0F172A" flood-opacity=".24"/></filter></defs>
+  <g filter="url(#s)">
+    <path d="M24 57C20.8 52.1 5 38.1 5 24A19 19 0 1 1 43 24c0 14.1-15.8 28.1-19 33Z" fill="#2563EB" stroke="#fff" stroke-width="3"/>
+    <circle cx="24" cy="24" r="13" fill="#fff"/>
+    <path d="M26.1 13 17 26h6l-1.2 9L31 21h-6l1.1-8Z" fill="#2563EB" stroke="#1D4ED8" stroke-width="1" stroke-linejoin="round"/>
+  </g>
+</svg>

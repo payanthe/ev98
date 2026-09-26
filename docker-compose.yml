@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: ev98
+      POSTGRES_PASSWORD: ev98
+      POSTGRES_DB: ev98
+    ports:
+      - "5433:5432"
+    volumes:
+      - ev98_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ev98 -d ev98"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://ev98:ev98@db:5432/ev98
+      CORS_ORIGINS: http://localhost:5173
+      OCM_API_KEY: ${OCM_API_KEY:-}
+      ABRP_API_KEY: ${ABRP_API_KEY:-}
+      SHARINET_BASE_URL: https://gen.emapna.com
+      STATUS_TTL_SECONDS: 900
+      INGESTION_TOKEN: ${INGESTION_TOKEN:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+
+volumes:
+  ev98_pg:

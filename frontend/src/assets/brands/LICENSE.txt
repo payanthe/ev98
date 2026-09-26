@@ -1,0 +1,4 @@
+Brand emblems used in the vehicle picker are the optimized SVGs from
+https://github.com/cardog-ai/icons (MIT).
+
+The marks themselves remain the property of their respective owners.

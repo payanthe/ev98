@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" role="img" aria-labelledby="title">
+  <title id="title">خوشه ایستگاه‌های شارژ</title>
+  <defs><filter id="s" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0F172A" flood-opacity=".24"/></filter></defs>
+  <g filter="url(#s)">
+    <circle cx="32" cy="31" r="27" fill="#DCFCE7" stroke="#fff" stroke-width="3"/>
+    <circle cx="32" cy="31" r="20" fill="#16A34A"/>
+    <text x="32" y="36" fill="#fff" font-family="Arial, sans-serif" font-size="15" font-weight="700" text-anchor="middle">12</text>
+  </g>
+</svg>

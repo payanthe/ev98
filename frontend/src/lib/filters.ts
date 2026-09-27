@@ -92,8 +92,12 @@ export function readMapState(): { selectedId: string | null; filters: LocationFi
     filters: {
       connectors: params.getAll("connector").filter((id) => CONNECTOR_IDS.has(id)),
       minPowerKw: normalizePower(power),
-      source: params.get("source") === "sharinet" ? "sharinet" : null,
-      availability: params.get("availability") === "available" ? "available" : null,
+      // Phase 1: فیلتر منبع مخفی — به کاربر نشان داده نمی‌شود
+      source: null,
+      // source: params.get("source") === "sharinet" ? "sharinet" : null,
+      // Phase 1: فیلتر وضعیت زنده غیرفعال — فقط محل ایستگاه‌ها
+      availability: null,
+      // availability: params.get("availability") === "available" ? "available" : null,
       vehicleId: validVehicleId(params.get("vehicle")) ?? readStoredVehicle(),
     },
   };
@@ -104,8 +108,10 @@ export function writeMapState(selectedId: string | null, filters: LocationFilter
   if (selectedId) params.set("location", selectedId);
   for (const connector of filters.connectors) params.append("connector", connector);
   if (filters.minPowerKw) params.set("min_power", String(filters.minPowerKw));
-  if (filters.source) params.set("source", filters.source);
-  if (filters.availability) params.set("availability", filters.availability);
+  // Phase 1: پارامتر source در URL نوشته نمی‌شود
+  // if (filters.source) params.set("source", filters.source);
+  // Phase 1: پارامتر availability در URL نوشته نمی‌شود
+  // if (filters.availability) params.set("availability", filters.availability);
   if (filters.vehicleId) params.set("vehicle", filters.vehicleId);
   writeStoredVehicle(filters.vehicleId);
   const next = params.toString();

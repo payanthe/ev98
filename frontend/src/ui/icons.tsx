@@ -36,6 +36,14 @@ export function IconClose() {
   );
 }
 
+export function IconChevron({ direction }: { direction: "previous" | "next" }) {
+  return (
+    <Icon>
+      <path d={direction === "previous" ? "M9 5l7 7-7 7" : "M15 5l-7 7 7 7"} />
+    </Icon>
+  );
+}
+
 export function IconPlus() {
   return (
     <Icon>
@@ -60,6 +68,14 @@ export function IconCheck() {
   );
 }
 
+export function IconFilter() {
+  return (
+    <Icon>
+      <path d="M4 6h16M7 12h10M10 18h4" />
+    </Icon>
+  );
+}
+
 export function IconCar() {
   return (
     <Icon>
@@ -70,11 +86,68 @@ export function IconCar() {
   );
 }
 
+export function IconBattery() {
+  return (
+    <Icon>
+      <rect x="3.5" y="7.5" width="14.5" height="9" rx="2" />
+      <path d="M18 10.5h1.5a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H18" />
+      <path d="M6.5 10.5h6.5v3H6.5z" fill="currentColor" stroke="none" opacity="0.85" />
+    </Icon>
+  );
+}
+
+export function IconRange() {
+  return (
+    <Icon>
+      <circle cx="12" cy="13" r="7" />
+      <path d="M12 13V8.5" />
+      <path d="M12 13l3.6 2.2" />
+      <path d="M7.2 7.2A8.4 8.4 0 0 1 16.8 7.2" />
+    </Icon>
+  );
+}
+
+export function IconBolt() {
+  return (
+    <Icon>
+      <path d="M13 3.5 7.5 13h4.2L10.5 20.5 16.5 11h-4.1z" />
+    </Icon>
+  );
+}
+
+export function IconPlug() {
+  return (
+    <Icon>
+      <path d="M9 7.5v3.5M15 7.5v3.5" />
+      <path d="M8 11h8v2.2a4 4 0 0 1-4 4h0a4 4 0 0 1-4-4z" />
+      <path d="M12 17.2V20.5" />
+    </Icon>
+  );
+}
+
 export function IconLocate() {
   return (
     <Icon>
       <circle cx="12" cy="12" r="3.25" />
       <path d="M12 3.5v2.5M12 18v2.5M3.5 12H6M18 12h2.5" />
+    </Icon>
+  );
+}
+
+export function IconMapFit() {
+  return (
+    <Icon>
+      <path d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4" />
+      <path d="M9.5 12h5M12 9.5v5" />
+    </Icon>
+  );
+}
+
+export function IconPin() {
+  return (
+    <Icon>
+      <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" />
+      <circle cx="12" cy="10" r="2.5" />
     </Icon>
   );
 }

@@ -164,7 +164,8 @@ export function SearchBox({ onSelect }: { onSelect: (location: MapLocation) => v
                   onClick={() => choose(item)}
                 >
                   <b>{item.name}</b>
-                  <span>{item.city || item.operator_name || item.availability_label}</span>
+                  {/* Phase 1: بدون نمایش وضعیت شارژ در نتایج جستجو */}
+                  <span>{item.city || item.operator_name || ""}</span>
                   <PlugRow standards={item.connector_standards} labels={item.connector_labels} />
                 </li>
               ))}

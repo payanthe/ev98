@@ -12,7 +12,53 @@ def main() -> None:
     sync = sub.add_parser("sync")
     sync.add_argument("source", choices=["sharinet", "ocm", "abrp"])
     sync.add_argument("--no-details", action="store_true")
+    reconcile = sub.add_parser("reconcile-locations")
+    reconcile.add_argument("--dry-run", action="store_true")
+    resolve = sub.add_parser("resolve-duplicate")
+    resolve.add_argument("candidate_id")
+    resolve.add_argument("decision", choices=["merge", "distinct"])
+    sub.add_parser("list-duplicates")
     args = parser.parse_args()
+
+    if args.command == "reconcile-locations":
+        from app.ingestion.reconcile import reconcile_locations
+
+        with session_scope() as session:
+            stats = reconcile_locations(session, dry_run=args.dry_run)
+            if args.dry_run:
+                session.rollback()
+        print(stats)
+        return
+    if args.command == "resolve-duplicate":
+        from app.ingestion.reconcile import resolve_candidate
+
+        with session_scope() as session:
+            candidate = resolve_candidate(session, uuid.UUID(args.candidate_id), args.decision)
+            print(candidate.id, candidate.status)
+        return
+    if args.command == "list-duplicates":
+        from sqlalchemy import select
+
+        from app.models.entities import DuplicateCandidate, Location
+
+        with session_scope() as session:
+            candidates = session.scalars(
+                select(DuplicateCandidate)
+                .where(DuplicateCandidate.status == "pending")
+                .order_by(DuplicateCandidate.confidence.desc())
+            ).all()
+            for candidate in candidates:
+                left = session.get(Location, candidate.left_location_id)
+                right = session.get(Location, candidate.right_location_id)
+                print(
+                    candidate.id,
+                    float(candidate.confidence),
+                    f"{candidate.evidence.get('distance_m', '?')}m",
+                    repr(left.canonical_name_fa if left else "missing"),
+                    "<>",
+                    repr(right.canonical_name_fa if right else "missing"),
+                )
+        return
 
     with session_scope() as session:
         ensure_sources(session)

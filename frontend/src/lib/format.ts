@@ -23,3 +23,28 @@ export function sourceLabel(code: string): string {
   if (code === "abrp") return "ABRP";
   return code;
 }
+
+export function isUnknownOperator(name: string | null | undefined): boolean {
+  if (!name) return true;
+  const normalized = name.trim().toLowerCase();
+  return normalized === "" || normalized === "unknown" || normalized === "unknown operator";
+}
+
+/** Short Persian brand names for known network operators. */
+function canonicalizeOperatorName(name: string): string {
+  const trimmed = name.trim();
+  if (/ایکس\s*ویژن|xvision|xv\s*go/i.test(trimmed)) return "ایکس ویژن";
+  return trimmed;
+}
+
+/** For compact lists: hide unknown operators entirely. */
+export function operatorLabelOrNull(name: string | null | undefined): string | null {
+  if (isUnknownOperator(name)) return null;
+  return canonicalizeOperatorName(name!);
+}
+
+/** For detail views: show a Persian fallback instead of English placeholders. */
+export function formatOperatorName(name: string | null | undefined): string {
+  if (isUnknownOperator(name)) return "نامشخص";
+  return canonicalizeOperatorName(name!);
+}

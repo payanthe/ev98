@@ -8,6 +8,8 @@ import type2Cable from "../assets/connectors/Type2_tethered.svg";
 import type3 from "../assets/connectors/Type3c.svg";
 import unknown from "../assets/connectors/Unknown.svg";
 import schuko from "../assets/connectors/schuko.svg";
+import gbtAc from "../assets/connectors/Gbt_ac.svg";
+import gbtDc from "../assets/connectors/Gbt_dc.svg";
 
 const ICONS: Record<string, string> = {
   CCS_1: ccs1,
@@ -19,8 +21,8 @@ const ICONS: Record<string, string> = {
   TESLA: tesla,
   TYPE_3: type3,
   UNKNOWN: unknown,
-  GBT_AC: unknown,
-  GBT_DC: unknown,
+  GBT_AC: gbtAc,
+  GBT_DC: gbtDc,
 };
 
 export function connectorIcon(standard: string, format?: string | null): string | null {

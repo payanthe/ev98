@@ -41,6 +41,20 @@ def _access(usage_id: object) -> tuple[bool | None, str]:
     return None, "unknown"
 
 
+def _image_urls(poi: dict) -> list[str]:
+    """Return enabled OCM photo URLs, excluding videos and unsafe URLs."""
+    urls: list[str] = []
+    for media in poi.get("MediaItems") or []:
+        if not isinstance(media, dict):
+            continue
+        if media.get("IsEnabled") is False or media.get("IsVideo") is True:
+            continue
+        url = str(media.get("ItemURL") or "").strip()
+        if url.startswith("https://") and url not in urls:
+            urls.append(url)
+    return urls
+
+
 def normalize_poi(
     poi: dict,
     operators: dict[int, str] | None = None,
@@ -143,6 +157,7 @@ def normalize_poi(
         hours_schedule=hours.as_dict() if hours.parseable or hours.raw else None,
         access_type=access_type,
         facilities=list(annotations.facilities or []),
+        image_urls=_image_urls(poi),
         notes=annotations.notes,
         attribution=attribution,
         publish=publish,

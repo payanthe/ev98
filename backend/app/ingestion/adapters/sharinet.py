@@ -131,7 +131,10 @@ def normalize_charge_point(list_item: dict, detail: dict | None) -> NormalizedRe
         address=(detail or {}).get("address"),
         city=city,
         province=province,
-        operator_name="شارینت",
+        # Sharinet is the Mapna client/data source, not a separate charging
+        # network. Keep source attribution on the record and expose the actual
+        # network operator here.
+        operator_name="مپنا",
         is_public=True,
         is_24_7=is_24_7,
         hours_summary=hours_summary,

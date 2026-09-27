@@ -24,6 +24,10 @@ const ICONS: Record<string, string> = {
   volvo,
 };
 
+export function brandHasMark(icon: string | null | undefined): boolean {
+  return Boolean(icon && ICONS[icon]);
+}
+
 export function BrandMark({ icon, name }: { icon: string | null; name: string }) {
   const src = icon ? ICONS[icon] : null;
   if (src) return <img className="brand-mark" src={src} alt="" />;

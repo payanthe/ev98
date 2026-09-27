@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { LocationFilters, VehicleVariant } from "../../api/types";
 import { VehiclePicker } from "../vehicles/VehiclePicker";
 import { CONNECTOR_FILTERS, EMPTY_FILTERS, POWER_FILTERS, activeFilterCount, filterSummary } from "../../lib/filters";
@@ -6,31 +6,72 @@ import { findVehicle, useVehicleCatalog } from "../../lib/vehicles";
 import { useMediaQuery } from "../../lib/useMediaQuery";
 import { formatNumber } from "../../lib/format";
 import { ConnectorMark } from "../../ui/ConnectorMark";
-import { IconCheck, IconPowerLevel } from "../../ui/icons";
+import { IconCheck, IconFilter, IconPowerLevel } from "../../ui/icons";
 
 export function FilterBar({
   filters,
   detailOpen,
+  nearbyOpen = false,
   onChange,
   children,
 }: {
   filters: LocationFilters;
   detailOpen: boolean;
+  nearbyOpen?: boolean;
   onChange: (filters: LocationFilters) => void;
   children?: ReactNode;
 }) {
   const isMobile = useMediaQuery("(max-width: 800px)");
-  const [open, setOpen] = useState(false);
+  const desktopDetail = detailOpen && !isMobile;
+  const desktopNearby = nearbyOpen && !detailOpen && !isMobile;
+  const panelOpen = detailOpen || nearbyOpen;
+  const [open, setOpen] = useState(() => !isMobile);
+  const [vehicleStep, setVehicleStep] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
   const vehicles = useVehicleCatalog();
   const selected = findVehicle(vehicles.data, filters.vehicleId);
   const vehicle: VehicleVariant | null = selected?.variant ?? null;
-  const expanded = !isMobile || open;
+  const expanded = open;
   const count = activeFilterCount(filters);
   const summary = filterSummary(filters, vehicle?.display_name);
+  const showToggle = isMobile || detailOpen || nearbyOpen || vehicleStep;
+  const showHeadClear = !vehicleStep && count > 0 && !desktopDetail;
+  const showSummary = !expanded && Boolean(summary) && !desktopDetail;
+  const showStatus = !vehicleStep && !desktopDetail;
 
   useEffect(() => {
-    if (detailOpen && isMobile) setOpen(false);
-  }, [detailOpen, isMobile]);
+    if (panelOpen) {
+      setOpen(false);
+      setVehicleStep(false);
+    } else if (!isMobile) {
+      setOpen(true);
+    }
+  }, [panelOpen, isMobile]);
+
+  useEffect(() => {
+    const dismissOnOutside = (desktopDetail || desktopNearby) && open;
+    if (!vehicleStep && !dismissOnOutside) return;
+    function onPointerDown(event: PointerEvent) {
+      if (!dismissOnOutside) return;
+      if (rootRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+      setVehicleStep(false);
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      if (vehicleStep) {
+        setVehicleStep(false);
+        return;
+      }
+      setOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [desktopDetail, desktopNearby, open, vehicleStep]);
 
   function connectorIsOn(id: string) {
     if (!vehicle) return filters.connectors.includes(id);
@@ -51,38 +92,75 @@ export function FilterBar({
   }
 
   return (
-    <div className="filters">
-      <VehiclePicker
-        catalog={vehicles.data}
-        loading={vehicles.isLoading}
-        error={vehicles.isError}
-        vehicleId={filters.vehicleId}
-        onRetry={() => void vehicles.refetch()}
-        onSelect={(variant) => onChange({ ...filters, vehicleId: variant.id, connectors: [] })}
-        onClear={() => onChange({ ...filters, vehicleId: null, connectors: [] })}
-      />
-      {isMobile && (
+    <div
+      ref={rootRef}
+      className={`filters${expanded ? " is-expanded" : " is-compact"}${vehicleStep ? " is-vehicle-step" : ""}${desktopDetail ? " is-detail-dock" : ""}${desktopNearby ? " is-nearby-dock" : ""}`}
+    >
+      {showToggle && (
         <div className="filters-head">
-          <button
-            type="button"
-            className="filters-toggle"
-            aria-expanded={open}
-            aria-controls="map-filters"
-            onClick={() => setOpen((current) => !current)}
-          >
-            فیلترها
-            {count > 0 && <span className="count-badge">{formatNumber(count)}</span>}
-          </button>
-          {count > 0 && (
+          {vehicleStep ? (
+            <button type="button" className="filters-back" onClick={() => setVehicleStep(false)}>
+              <IconFilter />
+              بازگشت به فیلترها
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={`filters-toggle${desktopDetail && !open ? " is-chip" : ""}`}
+              aria-expanded={open}
+              aria-controls="map-filters"
+              aria-label={open ? "جمع کردن فیلترها" : count > 0 ? `فیلترها، ${formatNumber(count)} مورد فعال` : "فیلترها"}
+              onClick={() => setOpen((current) => {
+                if (current) setVehicleStep(false);
+                return !current;
+              })}
+            >
+              <IconFilter />
+              {desktopDetail && !open ? null : open ? "جمع کردن فیلترها" : "فیلترها"}
+              {count > 0 && <span className="count-badge">{formatNumber(count)}</span>}
+            </button>
+          )}
+          {showHeadClear && (
             <button type="button" onClick={() => onChange(EMPTY_FILTERS)}>
               پاک کردن
             </button>
           )}
         </div>
       )}
-      {isMobile && !open && summary && <p className="filter-summary">{summary}</p>}
+      {showSummary && <p className="filter-summary">{summary}</p>}
       {expanded && (
         <div className="filters-body" id="map-filters">
+          {vehicleStep ? (
+            <VehiclePicker
+              key="vehicle-inline-step"
+              inline
+              catalog={vehicles.data}
+              loading={vehicles.isLoading}
+              error={vehicles.isError}
+              vehicleId={filters.vehicleId}
+              onRetry={() => void vehicles.refetch()}
+              onCancel={() => setVehicleStep(false)}
+              onSelect={(variant) => {
+                onChange({ ...filters, vehicleId: variant.id, connectors: [] });
+                setVehicleStep(false);
+              }}
+              onClear={() => onChange({ ...filters, vehicleId: null, connectors: [] })}
+            />
+          ) : <>
+          <VehiclePicker
+            key="vehicle-filter-trigger"
+            catalog={vehicles.data}
+            loading={vehicles.isLoading}
+            error={vehicles.isError}
+            vehicleId={filters.vehicleId}
+            onRetry={() => void vehicles.refetch()}
+            onOpenRequest={() => {
+              setOpen(true);
+              setVehicleStep(true);
+            }}
+            onSelect={(variant) => onChange({ ...filters, vehicleId: variant.id, connectors: [] })}
+            onClear={() => onChange({ ...filters, vehicleId: null, connectors: [] })}
+          />
           <div className="filter-group connector-filter-group" role="group" aria-labelledby="filter-connectors">
             <span className="group-label" id="filter-connectors">
               کانکتور
@@ -135,6 +213,8 @@ export function FilterBar({
               );
             })}
           </div>
+          {/* Phase 1: فیلتر وضعیت (فقط آزاد) مخفی — در فاز اول فقط محل ایستگاه‌ها؛ وضعیت زنده بعداً */}
+          {/*
           <div className="filter-group" role="group" aria-labelledby="filter-status">
             <span className="group-label" id="filter-status">
               وضعیت
@@ -154,6 +234,9 @@ export function FilterBar({
               فقط آزاد
             </button>
           </div>
+          */}
+          {/* Phase 1: فیلتر منبع (شارینت) مخفی — منابع به کاربر نشان داده نمی‌شود */}
+          {/*
           <div className="filter-group" role="group" aria-labelledby="filter-source">
             <span className="group-label" id="filter-source">
               منبع
@@ -170,14 +253,16 @@ export function FilterBar({
               شارینت
             </button>
           </div>
-          {!isMobile && count > 0 && (
+          */}
+          {(!isMobile || desktopDetail) && count > 0 && (
             <button type="button" onClick={() => onChange(EMPTY_FILTERS)}>
               پاک کردن
             </button>
           )}
+          </>}
         </div>
       )}
-      {children}
+      {showStatus && children}
     </div>
   );
 }

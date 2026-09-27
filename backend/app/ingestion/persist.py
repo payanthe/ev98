@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 import uuid
 from datetime import timedelta
@@ -17,6 +18,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from app.core.config import settings
 from app.domain.priority import claim
 from app.domain.text import normalize_fa, toman_to_rial
+from app.ingestion.matching import LocationIdentity, MatchEvidence, match_locations
 from app.ingestion.records import NormalizedConnector, NormalizedEvse, NormalizedNote, NormalizedRecord, normalized_dict
 from app.models.base import utcnow
 from app.models.entities import (
@@ -43,10 +45,17 @@ def point(lng: float, lat: float) -> WKTElement:
     return WKTElement(f"POINT({float(lng)} {float(lat)})", srid=4326)
 
 
+_CANONICAL_OPERATORS: dict[str, tuple[str, tuple[str, ...]]] = {
+    "mapna": ("مپنا", ("مپنا", "شارینت", "mapna", "emapna", "empana", "sharinet")),
+    "xvision": ("ایکس ویژن", ("ایکس ویژن", "ایکسویژن", "xvision", "xv go", "xvgo")),
+}
+
+
 def operator_slug(name: str) -> str:
-    known = {"شارینت": "sharinet", "مپنا": "mapna"}
-    if name in known:
-        return known[name]
+    normalized = normalize_fa(name).lower()
+    for slug, (_label, tokens) in _CANONICAL_OPERATORS.items():
+        if any(token in normalized for token in tokens):
+            return slug
     ascii_part = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
     if ascii_part:
         return ascii_part[:60]
@@ -67,13 +76,15 @@ def get_source(session, code: str) -> SourceSystem:
 
 def get_operator(session, name: str) -> Operator:
     slug = operator_slug(name)
+    canonical = _CANONICAL_OPERATORS.get(slug)
+    canonical_name = canonical[0] if canonical else name
     operator = session.scalar(select(Operator).where(Operator.slug == slug))
     if operator is None:
-        operator = Operator(slug=slug, name=name)
+        operator = Operator(slug=slug, name=canonical_name)
         session.add(operator)
         session.flush()
-    elif operator.name != name and slug in {"sharinet", "mapna"}:
-        operator.name = name
+    elif operator.name != canonical_name and slug in _CANONICAL_OPERATORS:
+        operator.name = canonical_name
     return operator
 
 
@@ -241,6 +252,7 @@ def upsert_external(
     ext.canonical_entity_id = canonical_id
     ext.is_present_at_source = bool(record.publish)
     ext.validation_status = "valid" if record.publish else "withdrawn"
+    ext.validation_errors = None
     ext.attribution_text = record.attribution
     ext.last_seen_at = now
     ext.last_fetched_at = now
@@ -428,6 +440,96 @@ def _centroid(members: list[NormalizedRecord]) -> tuple[float, float]:
     )
 
 
+def _identity_from_record(record: NormalizedRecord, lat: float | None = None, lng: float | None = None) -> LocationIdentity:
+    return LocationIdentity(
+        name=record.name,
+        lat=record.lat if lat is None else lat,
+        lng=record.lng if lng is None else lng,
+        address=record.address,
+        operator_name=record.operator_name,
+    )
+
+
+def _identity_from_location(location: Location) -> LocationIdentity:
+    return LocationIdentity(
+        name=location.canonical_name_fa,
+        lat=float(location.latitude),
+        lng=float(location.longitude),
+        address=location.address.formatted_address_fa if location.address else None,
+        operator_name=location.operator.name if location.operator else None,
+    )
+
+
+def find_cross_source_match(
+    session,
+    record: NormalizedRecord,
+    counterpart_source: str,
+    *,
+    lat: float | None = None,
+    lng: float | None = None,
+) -> tuple[Location, MatchEvidence] | None:
+    """Find one unambiguous, high-confidence location owned by another source."""
+    identity = _identity_from_record(record, lat, lng)
+    # Cheap bounding box before the exact Haversine gate in match_locations.
+    lat_delta = 250 / 111_000
+    lng_delta = 250 / max(1.0, 111_000 * abs(math.cos(math.radians(identity.lat))))
+    candidates = session.scalars(
+        select(Location)
+        .where(
+            Location.deleted_at.is_(None),
+            Location.latitude.between(identity.lat - lat_delta, identity.lat + lat_delta),
+            Location.longitude.between(identity.lng - lng_delta, identity.lng + lng_delta),
+        )
+        .options(selectinload(Location.address), selectinload(Location.operator))
+    ).all()
+    matches: list[tuple[Location, MatchEvidence]] = []
+    for candidate in candidates:
+        if counterpart_source not in set(candidate.source_codes or []):
+            continue
+        evidence = match_locations(identity, _identity_from_location(candidate))
+        if evidence is not None:
+            matches.append((candidate, evidence))
+    matches.sort(key=lambda item: (item[1].confidence, -item[1].distance_m), reverse=True)
+    if not matches:
+        return None
+    # Do not auto-merge when two nearby candidates are almost equally plausible.
+    if len(matches) > 1 and matches[0][1].confidence - matches[1][1].confidence < 0.05:
+        return None
+    return matches[0]
+
+
+def _absorb_catalog_location(
+    session, target: Location, duplicate: Location, source_code: str
+) -> list[ExternalRecord]:
+    """Move catalog assertions to target and retire only their duplicate hardware."""
+    source = session.scalar(select(SourceSystem).where(SourceSystem.code == source_code))
+    if source is None:
+        return []
+    records = session.scalars(
+        select(ExternalRecord).where(
+            ExternalRecord.source_system_id == source.id,
+            ExternalRecord.canonical_entity_type == "location",
+            ExternalRecord.canonical_entity_id == duplicate.id,
+        )
+    ).all()
+    for external in records:
+        if source_code == "ocm" and external.raw_payload:
+            # Re-apply complementary OCM fields (for example phone) using the
+            # normal field-priority rules before moving its identity.
+            from app.ingestion.adapters.ocm import normalize_poi
+
+            normalized = normalize_poi(external.raw_payload)
+            if normalized is not None:
+                apply_location_fields(
+                    session, target, source_code, normalized, normalized.lat, normalized.lng
+                )
+        external.canonical_entity_id = target.id
+    withdraw_source_evses(session, duplicate, source_code, clear_notes=False)
+    recompute_source_codes(session, duplicate)
+    hide_if_empty(session, duplicate)
+    return records
+
+
 def persist_sharinet_cluster(session, source: SourceSystem, members: list[NormalizedRecord]) -> Location:
     ids = [item.external_id for item in members]
     existing = session.scalars(
@@ -443,6 +545,13 @@ def persist_sharinet_cluster(session, source: SourceSystem, members: list[Normal
     lat, lng = _centroid(members)
     anchor = min(ids)
     primary = _richest(members)
+    matched = find_cross_source_match(session, primary, "ocm", lat=lat, lng=lng)
+    if matched is not None:
+        matched_location = matched[0]
+        if location is None:
+            location = matched_location
+        elif location.id != matched_location.id:
+            _absorb_catalog_location(session, location, matched_location, "ocm")
     if location is None:
         location = new_location(session, "sharinet", anchor, primary.name, lat, lng)
     location.deleted_at = None
@@ -459,6 +568,11 @@ def persist_sharinet_cluster(session, source: SourceSystem, members: list[Normal
             replace_connectors(session, evse, evse_norm.connectors)
             upsert_price(session, location.id, evse.id, member)
         upsert_external(session, source, member, canonical_type="evse", canonical_id=evse.id, entity_type="charge_point")
+    # OCM models the whole site as a synthetic EVSE. Once operator-grade
+    # Sharinet hardware exists, keep OCM as metadata only to avoid double counts.
+    withdraw_source_evses(session, location, "ocm", clear_notes=False)
+    if matched is not None:
+        link_same_site_records(session, location, matched[1])
     recompute_source_codes(session, location)
     location.data_quality_score = score_location(session, location)
     return location
@@ -523,9 +637,12 @@ def _merge_notes(members: list[NormalizedRecord]) -> list[NormalizedNote]:
     return merged
 
 
-def withdraw_source_evses(session, location: Location, source_code: str) -> None:
+def withdraw_source_evses(
+    session, location: Location, source_code: str, *, clear_notes: bool = True
+) -> None:
     now = utcnow()
-    replace_source_notes(location, source_code, [])
+    if clear_notes:
+        replace_source_notes(location, source_code, [])
     pools = session.scalars(
         select(ChargingPool)
         .where(ChargingPool.location_id == location.id, ChargingPool.origin_source_code == source_code)
@@ -543,12 +660,20 @@ def _withdraw_unseen_evses(session, pool: ChargingPool, seen: set[str]) -> None:
             evse.withdrawn_at = now
 
 
-def link_records(session, left: ExternalRecord, right: ExternalRecord, evidence: dict) -> None:
+def link_records(
+    session,
+    left: ExternalRecord,
+    right: ExternalRecord,
+    evidence: dict,
+    *,
+    relation_type: str = "IMPORTED_FROM",
+    confidence: Decimal = Decimal("1.0000"),
+) -> None:
     exists = session.scalar(
         select(ExternalLink.id).where(
             ExternalLink.left_external_record_id == left.id,
             ExternalLink.right_external_record_id == right.id,
-            ExternalLink.relation_type == "IMPORTED_FROM",
+            ExternalLink.relation_type == relation_type,
         )
     )
     if exists is None:
@@ -556,11 +681,49 @@ def link_records(session, left: ExternalRecord, right: ExternalRecord, evidence:
             ExternalLink(
                 left_external_record_id=left.id,
                 right_external_record_id=right.id,
-                relation_type="IMPORTED_FROM",
-                confidence=Decimal("1.0000"),
+                relation_type=relation_type,
+                confidence=confidence,
                 evidence=evidence,
             )
         )
+
+
+def link_same_site_records(session, location: Location, evidence: MatchEvidence) -> None:
+    """Keep auditable source-to-source evidence without treating it as a validation error."""
+    ocm = session.scalar(select(SourceSystem).where(SourceSystem.code == "ocm"))
+    sharinet = session.scalar(select(SourceSystem).where(SourceSystem.code == "sharinet"))
+    if ocm is None or sharinet is None:
+        return
+    ocm_records = session.scalars(
+        select(ExternalRecord).where(
+            ExternalRecord.source_system_id == ocm.id,
+            ExternalRecord.canonical_entity_type == "location",
+            ExternalRecord.canonical_entity_id == location.id,
+            ExternalRecord.is_present_at_source.is_(True),
+        )
+    ).all()
+    evse_ids = [evse.id for evse in iter_evses(session, location.id) if evse.origin_source_code == "sharinet"]
+    if not evse_ids:
+        return
+    sharinet_records = session.scalars(
+        select(ExternalRecord).where(
+            ExternalRecord.source_system_id == sharinet.id,
+            ExternalRecord.canonical_entity_type == "evse",
+            ExternalRecord.canonical_entity_id.in_(evse_ids),
+            ExternalRecord.is_present_at_source.is_(True),
+        )
+    ).all()
+    confidence = Decimal(str(round(evidence.confidence, 4)))
+    for left in ocm_records:
+        for right in sharinet_records:
+            link_records(
+                session,
+                left,
+                right,
+                evidence.as_dict(),
+                relation_type="SAME_SITE",
+                confidence=confidence,
+            )
 
 
 def _overlay_live_status(session, location: Location, record: NormalizedRecord) -> None:
@@ -581,10 +744,16 @@ def _overlay_live_status(session, location: Location, record: NormalizedRecord) 
 
 def persist_catalog_record(session, source: SourceSystem, record: NormalizedRecord) -> None:
     location = _location_from_external(session, source, record)
+    duplicate_location = None
+    cross_match = None
     if record.source_code == "ocm":
         linked = find_location_for_ocm(session, record.external_id)
         if linked is not None:
             location = linked
+        cross_match = find_cross_source_match(session, record, "sharinet")
+        if cross_match is not None and (location is None or cross_match[0].id != location.id):
+            duplicate_location = location
+            location = cross_match[0]
     elif record.ocm_external_id:
         linked = find_location_for_ocm(session, record.ocm_external_id)
         if linked is not None:
@@ -636,8 +805,11 @@ def persist_catalog_record(session, source: SourceSystem, record: NormalizedReco
             if ocm_ext is not None:
                 link_records(session, ext, ocm_ext, {"ocm_external_id": record.ocm_external_id})
 
+    sharinet_overlay = record.source_code == "ocm" and "sharinet" in _active_sources(session, location)
     if abrp_overlay:
         _overlay_live_status(session, location, record)
+    elif sharinet_overlay:
+        withdraw_source_evses(session, location, "ocm", clear_notes=False)
     else:
         pool = pool_for(session, location, record.source_code)
         seen: set[str] = set()
@@ -647,6 +819,14 @@ def persist_catalog_record(session, source: SourceSystem, record: NormalizedReco
                 replace_connectors(session, evse, evse_norm.connectors)
             seen.add(evse_norm.external_id)
         _withdraw_unseen_evses(session, pool, seen)
+
+    if duplicate_location is not None:
+        withdraw_source_evses(session, duplicate_location, record.source_code, clear_notes=False)
+        recompute_source_codes(session, duplicate_location)
+        hide_if_empty(session, duplicate_location)
+
+    if cross_match is not None:
+        link_same_site_records(session, location, cross_match[1])
 
     recompute_source_codes(session, location)
     location.data_quality_score = score_location(session, location)

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>سیستم آیکن EV98</title>
+<style>
+  *{box-sizing:border-box}body{margin:0;background:#edf3f1;color:#102a27;font-family:Tahoma,Arial,sans-serif}main{max-width:1080px;margin:auto;padding:44px 24px 72px}h1{margin:0 0 8px;font-size:30px}h2{margin:40px 0 16px;font-size:19px}p{margin:0;color:#526864;line-height:1.8}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px}.card{min-height:174px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#fff;border:1px solid #d8e4e1;border-radius:20px;box-shadow:0 8px 24px #0f363112}.pin{position:relative;width:62px;height:76px}.pin>img{width:100%;height:100%;object-fit:contain}.power{position:absolute;top:27px;left:50%;transform:translateX(-50%);direction:ltr;font-size:11px;font-weight:800}.power small{font-size:6px}.card b{font-size:13px}.card small{color:#687b78}.badges{display:flex;flex-wrap:wrap;gap:16px}.badge{min-width:120px;display:flex;align-items:center;gap:9px;background:#fff;border:1px solid #d8e4e1;border-radius:14px;padding:10px 12px}.badge img{width:28px;height:28px}.connector img{width:58px;height:58px}.note{margin-top:16px;padding:14px 16px;background:#dff3ed;border-radius:14px;color:#31534e}.base{filter:drop-shadow(0 8px 8px #102a2730)}
+</style>
+<main>
+  <h1>سیستم آیکن نقشه EV98</h1>
+  <p>یک فرم پایه، وضعیت‌های معنادار و قابلیت نمایش توان بدون از بین بردن وضعیت.</p>
+  <h2>پین پایه و وضعیت‌ها</h2>
+  <section class="grid">
+    <div class="card"><div class="pin base"><img src="station-base.svg"><span class="power">120<small>kW</small></span></div><b>پین پایه</b><small>بدون وضعیت</small></div>
+    <div class="card"><div class="pin"><img src="station-available.svg"><span class="power">120<small>kW</small></span></div><b>آزاد</b><small>وضعیت زنده</small></div>
+    <div class="card"><div class="pin"><img src="station-busy.svg"><span class="power">60<small>kW</small></span></div><b>در حال شارژ</b><small>وضعیت زنده</small></div>
+    <div class="card"><div class="pin"><img src="station-offline.svg"><span class="power">30<small>kW</small></span></div><b>خارج از دسترس</b><small>خراب یا غیرفعال</small></div>
+    <div class="card"><div class="pin"><img src="station-stale.svg"><span class="power">60<small>kW</small></span></div><b>اطلاعات منقضی</b><small>وضعیت زنده قدیمی</small></div>
+    <div class="card"><div class="pin"><img src="station-operational.svg"><span class="power">120<small>kW</small></span></div><b>عملیاتی</b><small>بدون وضعیت زنده</small></div>
+    <div class="card"><div class="pin"><img src="station-unknown.svg"><span class="power">•</span></div><b>نامشخص</b><small>داده ناکافی</small></div>
+  </section>
+  <h2>نشان‌های ثانویه</h2>
+  <section class="badges"><div class="badge"><img src="badge-fast.svg"><b>سریع</b></div><div class="badge"><img src="badge-compatible.svg"><b>سازگار</b></div><div class="badge"><img src="badge-private.svg"><b>خصوصی</b></div><div class="badge"><img src="badge-24h.svg"><b>۲۴ ساعته</b></div><div class="badge"><img src="badge-free.svg"><b>رایگان</b></div></section>
+  <h2>کانکتورهای GB/T</h2>
+  <section class="grid connector"><div class="card"><img src="../../src/assets/connectors/Gbt_ac.svg"><b>GB/T AC</b></div><div class="card"><img src="../../src/assets/connectors/Gbt_dc.svg"><b>GB/T DC</b></div></section>
+  <p class="note">صاعقه، سازگاری، خصوصی‌بودن، ۲۴ ساعته و رایگان‌بودن مشخصه‌اند؛ به همین دلیل از Pin وضعیت جدا نگه داشته شده‌اند.</p>
+</main>
+</html>

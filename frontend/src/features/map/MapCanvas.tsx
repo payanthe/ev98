@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import "leaflet.markercluster";
 import type { BBox, MapLocation } from "../../api/types";
 import { formatNumber } from "../../lib/format";
-import { IconLocate, IconMinus, IconPlus } from "../../ui/icons";
+import { IconCheck, IconClose, IconLocate, IconMapFit, IconMinus, IconPin, IconPlus } from "../../ui/icons";
 
 const IRAN: L.LatLngBoundsExpression = [
   [25.0, 44.0],
@@ -13,14 +13,18 @@ const IRAN: L.LatLngBoundsExpression = [
 
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-type PinKind = "available" | "busy" | "fast" | "offline";
+type PinKind = "available" | "busy" | "offline" | "stale" | "operational" | "unknown";
 
-function pinKindFor(location: MapLocation): PinKind {
-  if (location.availability === "available") return "available";
-  if (location.availability === "charging") return "busy";
-  if (location.availability === "unavailable" || location.availability === "out_of_order") return "offline";
-  if ((location.max_power_kw ?? 0) >= 50) return "fast";
-  return "offline";
+// Phase 1: فقط محل ایستگاه‌ها — وضعیت زنده/در حال شارژ روی نقشه نشان داده نمی‌شود.
+// پین واحد (operational = بدون وضعیت زنده) برای همه ایستگاه‌ها.
+function pinKindFor(_location: MapLocation): PinKind {
+  return "operational";
+  // if (location.availability === "available") return "available";
+  // if (location.availability === "charging") return "busy";
+  // if (location.availability === "unavailable" || location.availability === "out_of_order") return "offline";
+  // if (location.availability === "stale") return "stale";
+  // if (location.availability === "operational") return "operational";
+  // return "unknown";
 }
 
 function roundBox(box: BBox): BBox {
@@ -29,13 +33,17 @@ function roundBox(box: BBox): BBox {
 }
 
 function iconFor(location: MapLocation, selected: boolean): L.DivIcon {
-  const power = location.max_power_kw ? formatNumber(Math.round(location.max_power_kw)) : "•";
+  const hasPower = location.max_power_kw != null;
+  const power = hasPower ? String(Math.round(location.max_power_kw!)) : "—";
+  const unit = hasPower ? "<small>kW</small>" : "";
   const kind = pinKindFor(location);
+  const width = selected ? 72 : 52;
+  const height = selected ? 91 : 66;
   return L.divIcon({
-    className: "pin-wrap",
-    html: `<div class="map-pin map-pin-${kind}${selected ? " is-selected" : ""}"><img src="/map-pins/station-${kind}.svg" alt="" /><span class="map-pin-power">${power}<small>kW</small></span></div>`,
-    iconSize: [52, 66],
-    iconAnchor: [26, 61],
+    className: `pin-wrap${selected ? " is-selected" : ""}`,
+    html: `<div class="map-pin map-pin-${kind}${selected ? " is-selected" : ""}"><img src="/map-pins/station-${kind}.svg" alt="" /><span class="map-pin-power">${power}${unit}</span></div>`,
+    iconSize: [width, height],
+    iconAnchor: [width / 2, height - 5],
   });
 }
 
@@ -97,7 +105,7 @@ function StationsLayer({
 }: {
   locations: MapLocation[];
   selectedId: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (location: MapLocation) => void;
 }) {
   const map = useMap();
   const markersRef = useRef<Map<string, L.Marker>>(new Map());
@@ -105,6 +113,9 @@ function StationsLayer({
   useEffect(() => {
     const group = L.markerClusterGroup({
       showCoverageOnHover: false,
+      // Keep clusters only when zoomed far out (e.g. whole Iran).
+      // At city scale (Tehran ~11–12) and closer, every station shows as its own pin.
+      disableClusteringAtZoom: 11,
       maxClusterRadius: 46,
       spiderfyOnMaxZoom: true,
       iconCreateFunction(cluster) {
@@ -120,10 +131,11 @@ function StationsLayer({
     for (const location of locations) {
       const marker = L.marker([location.lat, location.lng], {
         icon: iconFor(location, false),
-        title: `${location.name}، ${location.availability_label}`,
+        // Phase 1: عنوان پین بدون وضعیت شارژ/آزاد بودن
+        title: location.name,
         keyboard: true,
       });
-      marker.on("click", () => onSelect(location.id));
+      marker.on("click", () => onSelect(location));
       markers.set(location.id, marker);
       group.addLayer(marker);
     }
@@ -181,10 +193,16 @@ function MapTools({
   panelOpen,
   autoCenter,
   onNotice,
+  picking,
+  onPickingChange,
+  onSearchOrigin,
 }: {
   panelOpen: boolean;
   autoCenter: boolean;
   onNotice: (message: string | null) => void;
+  picking: boolean;
+  onPickingChange: (value: boolean) => void;
+  onSearchOrigin: (point: { lat: number; lng: number }) => void;
 }) {
   const map = useMap();
   const markerRef = useRef<L.Marker | null>(null);
@@ -193,6 +211,7 @@ function MapTools({
   const panelOpenRef = useRef(panelOpen);
   const [locating, setLocating] = useState(false);
   const [hasLocation, setHasLocation] = useState(false);
+  const [permissionPrompt, setPermissionPrompt] = useState(false);
 
   panelOpenRef.current = panelOpen;
 
@@ -235,6 +254,7 @@ function MapTools({
     }
 
     setHasLocation(true);
+    onSearchOrigin({ lat: latitude, lng: longitude });
     onNotice(null);
     if (fly) {
       const zoom = Math.max(map.getZoom(), 14);
@@ -261,6 +281,23 @@ function MapTools({
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 },
     );
+  }
+
+  function requestLocate() {
+    if (!navigator.geolocation) {
+      onNotice("این مرورگر موقعیت را پشتیبانی نمی‌کند.");
+      return;
+    }
+    const permissions = navigator.permissions;
+    if (!permissions?.query) {
+      setPermissionPrompt(true);
+      return;
+    }
+    void permissions.query({ name: "geolocation" as PermissionName }).then((status) => {
+      if (status.state === "granted") locate({ fly: true });
+      else if (status.state === "denied") onNotice("دسترسی موقعیت قبلاً رد شده است. آن را از تنظیمات مرورگر فعال کنید.");
+      else setPermissionPrompt(true);
+    }).catch(() => setPermissionPrompt(true));
   }
 
   useEffect(() => {
@@ -291,29 +328,202 @@ function MapTools({
       onClick={(event) => event.stopPropagation()}
       onDoubleClick={(event) => event.stopPropagation()}
     >
-      <button type="button" className="icon-button" onClick={() => map.zoomIn()} aria-label="بزرگ‌نمایی">
-        <IconPlus />
-      </button>
-      <button type="button" className="icon-button" onClick={() => map.zoomOut()} aria-label="کوچک‌نمایی">
-        <IconMinus />
-      </button>
-      <button type="button" onClick={() => map.fitBounds(IRAN, { animate: !reducedMotion, padding: [24, 24] })}>
-        ایران
-      </button>
+      <div className="map-tools-zoom" role="group" aria-label="زوم">
+        <button type="button" className="icon-button" onClick={() => map.zoomIn()} aria-label="بزرگ‌نمایی" title="بزرگ‌نمایی">
+          <IconPlus />
+        </button>
+        <button type="button" className="icon-button" onClick={() => map.zoomOut()} aria-label="کوچک‌نمایی" title="کوچک‌نمایی">
+          <IconMinus />
+        </button>
+      </div>
       <button
         type="button"
-        className={`locate-button${hasLocation ? " is-active" : ""}`}
-        onClick={() => locate({ fly: true })}
+        className={`map-tools-fab locate-button${hasLocation ? " is-active" : ""}`}
+        onClick={requestLocate}
         disabled={locating}
         aria-busy={locating}
         aria-label="رفتن به ناحیه من"
-        title="رفتن به ناحیه من"
+        title="ناحیه من"
       >
         <IconLocate />
-        <span>ناحیه من</span>
       </button>
+      <button
+        type="button"
+        className={`map-tools-fab pick-location-button${picking ? " is-active" : ""}`}
+        onClick={() => onPickingChange(!picking)}
+        aria-pressed={picking}
+        aria-label={picking ? "لغو انتخاب روی نقشه" : "انتخاب روی نقشه"}
+        title={picking ? "لغو انتخاب" : "انتخاب روی نقشه"}
+      >
+        {picking ? <IconClose /> : <IconPin />}
+      </button>
+      <button
+        type="button"
+        className="map-tools-fab"
+        onClick={() => map.fitBounds(IRAN, { animate: !reducedMotion, padding: [24, 24] })}
+        aria-label="نمای ایران"
+        title="نمای ایران"
+      >
+        <IconMapFit />
+      </button>
+      {permissionPrompt && (
+        <div className="location-permission" role="dialog" aria-modal="true" aria-labelledby="location-permission-title">
+          <span className="permission-icon"><IconLocate /></span>
+          <strong id="location-permission-title">اجازه دسترسی به موقعیت</strong>
+          <p>برای نمایش نزدیک‌ترین ایستگاه‌ها، مرورگر به اجازه موقعیت مکانی شما نیاز دارد.</p>
+          <div>
+            <button type="button" onClick={() => setPermissionPrompt(false)}>فعلاً نه</button>
+            <button type="button" className="primary" onClick={() => { setPermissionPrompt(false); locate({ fly: true }); }}>
+              <IconCheck /> ادامه
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+function isMapSurfaceTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  return !target.closest(
+    ".map-tools, .leaflet-control, .leaflet-marker-icon, .leaflet-popup, .pick-location-hint, button, a, input, textarea, select",
+  );
+}
+
+function ManualLocationPicker({ active, onPick }: { active: boolean; onPick: (point: { lat: number; lng: number }) => void }) {
+  const map = useMap();
+  const onPickRef = useRef(onPick);
+  onPickRef.current = onPick;
+
+  useMapEvents({
+    click(event) {
+      if (active) onPick({ lat: event.latlng.lat, lng: event.latlng.lng });
+    },
+    dblclick(event) {
+      if (!isMapSurfaceTarget(event.originalEvent.target)) return;
+      L.DomEvent.preventDefault(event);
+      L.DomEvent.stopPropagation(event);
+      onPick({ lat: event.latlng.lat, lng: event.latlng.lng });
+    },
+  });
+
+  useEffect(() => {
+    map.doubleClickZoom.disable();
+    return () => {
+      map.doubleClickZoom.enable();
+    };
+  }, [map]);
+
+  // Mobile: long-press empty map to drop the nearby-search pin.
+  useEffect(() => {
+    const container = map.getContainer();
+    const LONG_MS = 550;
+    const MOVE_TOLERANCE = 14;
+    let timer: number | null = null;
+    let startClient: L.Point | null = null;
+    let startLatLng: L.LatLng | null = null;
+    let suppressContextMenu = false;
+    let suppressTimer: number | null = null;
+
+    function clearTimer() {
+      if (timer != null) {
+        window.clearTimeout(timer);
+        timer = null;
+      }
+    }
+
+    function resetGesture() {
+      clearTimer();
+      startClient = null;
+      startLatLng = null;
+    }
+
+    function armContextMenuSuppress() {
+      suppressContextMenu = true;
+      if (suppressTimer != null) window.clearTimeout(suppressTimer);
+      suppressTimer = window.setTimeout(() => {
+        suppressContextMenu = false;
+        suppressTimer = null;
+      }, 450);
+    }
+
+    function onTouchStart(event: TouchEvent) {
+      if (event.touches.length !== 1 || !isMapSurfaceTarget(event.target)) {
+        resetGesture();
+        return;
+      }
+      const touch = event.touches[0];
+      startClient = L.point(touch.clientX, touch.clientY);
+      startLatLng = map.mouseEventToLatLng(touch as unknown as MouseEvent);
+      clearTimer();
+      timer = window.setTimeout(() => {
+        timer = null;
+        if (!startLatLng) return;
+        armContextMenuSuppress();
+        onPickRef.current({ lat: startLatLng.lat, lng: startLatLng.lng });
+        if (typeof navigator.vibrate === "function") navigator.vibrate(12);
+        resetGesture();
+      }, LONG_MS);
+    }
+
+    function onTouchMove(event: TouchEvent) {
+      if (!startClient || event.touches.length !== 1) {
+        resetGesture();
+        return;
+      }
+      const touch = event.touches[0];
+      if (startClient.distanceTo(L.point(touch.clientX, touch.clientY)) > MOVE_TOLERANCE) resetGesture();
+    }
+
+    function onTouchEnd() {
+      resetGesture();
+    }
+
+    function onContextMenu(event: Event) {
+      if (!suppressContextMenu) return;
+      event.preventDefault();
+      suppressContextMenu = false;
+    }
+
+    container.addEventListener("touchstart", onTouchStart, { passive: true });
+    container.addEventListener("touchmove", onTouchMove, { passive: true });
+    container.addEventListener("touchend", onTouchEnd);
+    container.addEventListener("touchcancel", onTouchEnd);
+    container.addEventListener("contextmenu", onContextMenu);
+    return () => {
+      resetGesture();
+      if (suppressTimer != null) window.clearTimeout(suppressTimer);
+      container.removeEventListener("touchstart", onTouchStart);
+      container.removeEventListener("touchmove", onTouchMove);
+      container.removeEventListener("touchend", onTouchEnd);
+      container.removeEventListener("touchcancel", onTouchEnd);
+      container.removeEventListener("contextmenu", onContextMenu);
+    };
+  }, [map]);
+
+  return null;
+}
+
+function SearchOriginMarker({ point }: { point: { lat: number; lng: number } | null }) {
+  const map = useMap();
+  const marker = useRef<L.Marker | null>(null);
+  useEffect(() => {
+    if (!point) {
+      marker.current?.remove();
+      marker.current = null;
+      return;
+    }
+    const icon = L.divIcon({
+      className: "search-origin-wrap",
+      html: '<div class="search-origin"><span></span></div>',
+      iconSize: [38, 48],
+      iconAnchor: [19, 44],
+    });
+    if (!marker.current) marker.current = L.marker([point.lat, point.lng], { icon, interactive: false, zIndexOffset: 1100 }).addTo(map);
+    else marker.current.setLatLng([point.lat, point.lng]);
+    return () => { marker.current?.remove(); marker.current = null; };
+  }, [map, point]);
+  return null;
 }
 
 export function MapCanvas({
@@ -325,6 +535,8 @@ export function MapCanvas({
   onBounds,
   onSelect,
   onNotice,
+  searchOrigin,
+  onSearchOrigin,
 }: {
   locations: MapLocation[];
   selectedId: string | null;
@@ -332,14 +544,21 @@ export function MapCanvas({
   panelOpen: boolean;
   autoCenterOnLocate?: boolean;
   onBounds: (box: BBox) => void;
-  onSelect: (id: string) => void;
+  onSelect: (location: MapLocation) => void;
   onNotice: (message: string | null) => void;
+  searchOrigin: { lat: number; lng: number } | null;
+  onSearchOrigin: (point: { lat: number; lng: number }) => void;
 }) {
+  const [picking, setPicking] = useState(false);
+  function pick(point: { lat: number; lng: number }) {
+    onSearchOrigin(point);
+    setPicking(false);
+  }
   return (
     <MapContainer
       center={[35.7219, 51.405]}
       zoom={12}
-      className="map"
+      className={`map${picking ? " is-picking-location" : ""}`}
       zoomControl={false}
       zoomAnimation={!reducedMotion}
       fadeAnimation={!reducedMotion}
@@ -352,8 +571,11 @@ export function MapCanvas({
       />
       <BoundsWatcher onChange={onBounds} />
       <StationsLayer locations={locations} selectedId={selectedId} onSelect={onSelect} />
+      <ManualLocationPicker active={picking} onPick={pick} />
+      <SearchOriginMarker point={searchOrigin} />
       <FlyTo target={flyTarget} />
-      <MapTools panelOpen={panelOpen} autoCenter={autoCenterOnLocate} onNotice={onNotice} />
+      <MapTools panelOpen={panelOpen} autoCenter={autoCenterOnLocate} onNotice={onNotice} picking={picking} onPickingChange={setPicking} onSearchOrigin={pick} />
+      {picking && <div className="pick-location-hint" role="status"><IconPin /> نقطه موردنظرتان را روی نقشه انتخاب کنید</div>}
     </MapContainer>
   );
 }

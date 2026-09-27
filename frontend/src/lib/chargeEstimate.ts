@@ -13,7 +13,10 @@ const DC_TAPER = 0.35;
 export type ChargeCurrent = "AC" | "DC";
 
 export type ChargePlan = {
+  /** Stable id for selecting among chargers at a station (plug + station power). */
+  key: string;
   plugLabel: string;
+  standard: string;
   current: ChargeCurrent;
   effectiveKw: number;
   stationKw: number | null;
@@ -68,13 +71,61 @@ function hoursBetween(soc: number, target: number, batteryKwh: number, kw: numbe
   return hours;
 }
 
-export function planCharge(vehicle: VehicleVariant, location: LocationDetail, socPercent: number): ChargePlan | null {
+function stationPowerOf(plan: ChargePlan): number {
+  return plan.stationKw ?? plan.effectiveKw;
+}
+
+/** Prefer the strongest charger on site; DC beats AC on ties. */
+function comparePlans(a: ChargePlan, b: ChargePlan): number {
+  const stationDiff = stationPowerOf(b) - stationPowerOf(a);
+  if (stationDiff !== 0) return stationDiff;
+  if (b.effectiveKw !== a.effectiveKw) return b.effectiveKw - a.effectiveKw;
+  if (a.current !== b.current) return a.current === "DC" ? -1 : 1;
+  return a.plugLabel.localeCompare(b.plugLabel, "fa");
+}
+
+function buildPlan(
+  connector: { standard: string; standard_label: string; power_type: string | null; max_power_kw: number | null },
+  current: ChargeCurrent,
+  stationKw: number | null,
+  vehicleLimitKw: number | null,
+  battery: { kwh: number; spread: boolean },
+  soc: number,
+): ChargePlan | null {
+  const known = [stationKw, vehicleLimitKw].filter((value): value is number => value != null);
+  if (known.length === 0) return null;
+  const effectiveKw = Math.min(...known);
+  const loss = current === "AC" ? AC_LOSS : DC_LOSS;
+  const windowKw = current === "DC" && soc >= 80 ? effectiveKw * DC_TAPER : effectiveKw;
+  const powerKey = stationKw == null ? "na" : String(stationKw);
+  return {
+    key: `${connector.standard}:${powerKey}:${current}`,
+    plugLabel: connector.standard_label,
+    standard: connector.standard,
+    current,
+    effectiveKw,
+    stationKw,
+    vehicleLimitKw,
+    batteryKwh: battery.kwh,
+    batterySpread: battery.spread,
+    percentPerHour: (windowKw / loss / battery.kwh) * 100,
+    hoursTo80: soc >= 80 ? null : hoursBetween(soc, 80, battery.kwh, effectiveKw, current),
+    hoursTo100: soc >= 100 ? null : hoursBetween(soc, 100, battery.kwh, effectiveKw, current),
+  };
+}
+
+/** All compatible chargers at the station, strongest first. Same plug+power collapsed. */
+export function listChargePlans(
+  vehicle: VehicleVariant,
+  location: LocationDetail,
+  socPercent: number,
+): ChargePlan[] {
   const battery = batteryOf(vehicle);
-  if (!battery) return null;
+  if (!battery) return [];
   const allowed = new Set(vehicle.station_standards);
   const soc = Math.min(100, Math.max(0, socPercent));
+  const byKey = new Map<string, ChargePlan>();
 
-  let best: ChargePlan | null = null;
   for (const evse of location.evses) {
     for (const connector of evse.connectors) {
       if (!allowed.has(connector.standard)) continue;
@@ -85,33 +136,23 @@ export function planCharge(vehicle: VehicleVariant, location: LocationDetail, so
       );
       const stationKw = positive(connector.max_power_kw) ?? (sameFamily ? positive(evse.max_power_kw) : null);
       const vehicleLimitKw = positive(current === "DC" ? vehicle.dc_charge_limit_kw : vehicle.ac_charge_limit_kw);
-      const known = [stationKw, vehicleLimitKw].filter((value): value is number => value != null);
-      if (known.length === 0) continue;
-      const effectiveKw = Math.min(...known);
-      const loss = current === "AC" ? AC_LOSS : DC_LOSS;
-      const windowKw = current === "DC" && soc >= 80 ? effectiveKw * DC_TAPER : effectiveKw;
-      const plan: ChargePlan = {
-        plugLabel: connector.standard_label,
-        current,
-        effectiveKw,
-        stationKw,
-        vehicleLimitKw,
-        batteryKwh: battery.kwh,
-        batterySpread: battery.spread,
-        percentPerHour: (windowKw / loss / battery.kwh) * 100,
-        hoursTo80: soc >= 80 ? null : hoursBetween(soc, 80, battery.kwh, effectiveKw, current),
-        hoursTo100: soc >= 100 ? null : hoursBetween(soc, 100, battery.kwh, effectiveKw, current),
-      };
-      if (
-        !best ||
-        plan.effectiveKw > best.effectiveKw ||
-        (plan.effectiveKw === best.effectiveKw && plan.current === "DC" && best.current === "AC")
-      ) {
-        best = plan;
-      }
+      const plan = buildPlan(connector, current, stationKw, vehicleLimitKw, battery, soc);
+      if (!plan) continue;
+      const prev = byKey.get(plan.key);
+      if (!prev || plan.effectiveKw > prev.effectiveKw) byKey.set(plan.key, plan);
     }
   }
-  return best;
+
+  return [...byKey.values()].sort(comparePlans);
+}
+
+/** Fastest plan for the vehicle at this station (highest charger power). */
+export function planCharge(
+  vehicle: VehicleVariant,
+  location: LocationDetail,
+  socPercent: number,
+): ChargePlan | null {
+  return listChargePlans(vehicle, location, socPercent)[0] ?? null;
 }
 
 export function formatDuration(hours: number | null): string {
@@ -123,4 +164,10 @@ export function formatDuration(hours: number | null): string {
   const rest = minutes % 60;
   if (rest < 5) return `${formatNumber(whole)} ساعت`;
   return `${formatNumber(whole)} ساعت و ${formatNumber(rest)} دقیقه`;
+}
+
+/** Chip / summary label: station power first, then plug. */
+export function formatChargerOption(plan: ChargePlan): string {
+  const power = plan.stationKw ?? plan.effectiveKw;
+  return `${formatNumber(power)} کیلووات · ${plan.plugLabel}`;
 }

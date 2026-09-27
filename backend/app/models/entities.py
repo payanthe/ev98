@@ -245,6 +245,22 @@ class ExternalLink(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+class DuplicateCandidate(Base, TimestampMixin):
+    __tablename__ = "duplicate_candidates"
+    __table_args__ = (
+        UniqueConstraint("left_location_id", "right_location_id", name="uq_duplicate_candidate_pair"),
+        {"schema": "integration"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    left_location_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("charging.locations.id"))
+    right_location_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("charging.locations.id"))
+    status: Mapped[str] = mapped_column(String(32), default="pending")
+    confidence: Mapped[Decimal] = mapped_column(Numeric(5, 4))
+    evidence: Mapped[dict] = mapped_column(JSONB, default=dict)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class SyncRun(Base):
     __tablename__ = "sync_runs"
     __table_args__ = {"schema": "integration"}

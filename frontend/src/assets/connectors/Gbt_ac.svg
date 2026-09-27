@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 480 480" fill="none" role="img" aria-labelledby="title">
+  <title id="title">GB/T AC</title>
+  <path d="M148 57h184c20 13 37 31 48 53 20 36 28 79 20 120-11 54-49 98-95 122-22 9-45 16-69 14-26-2-52-11-75-24-43-24-72-69-83-118-9-43-1-89 24-124 12-18 28-33 46-43Z" stroke="currentColor" stroke-width="22" stroke-linejoin="round"/>
+  <circle cx="196" cy="128" r="22" stroke="currentColor" stroke-width="20"/>
+  <circle cx="284" cy="128" r="22" stroke="currentColor" stroke-width="20"/>
+  <circle cx="150" cy="208" r="30" stroke="currentColor" stroke-width="20"/>
+  <circle cx="240" cy="208" r="30" stroke="currentColor" stroke-width="20"/>
+  <circle cx="330" cy="208" r="30" stroke="currentColor" stroke-width="20"/>
+  <circle cx="194" cy="298" r="30" stroke="currentColor" stroke-width="20"/>
+  <circle cx="286" cy="298" r="30" stroke="currentColor" stroke-width="20"/>
+</svg>

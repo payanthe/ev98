@@ -51,6 +51,26 @@ export function fetchLocations(bbox: BBox | null, filters: LocationFilters, q?: 
   return request<MapResponse>(`/v1/locations/?${params.toString()}`);
 }
 
+export function fetchNearbyLocations(
+  lat: number,
+  lng: number,
+  filters: LocationFilters,
+  radiusM = 100_000,
+  limit = 12,
+): Promise<MapResponse> {
+  const params = new URLSearchParams({
+    lat: String(lat),
+    lng: String(lng),
+    radius_m: String(radiusM),
+    limit: String(limit),
+  });
+  for (const connector of filters.connectors) params.append("connector", connector);
+  if (filters.minPowerKw) params.set("min_power_kw", String(filters.minPowerKw));
+  if (filters.source) params.append("source", filters.source);
+  if (filters.availability) params.set("availability", filters.availability);
+  return request<MapResponse>(`/v1/locations/?${params.toString()}`);
+}
+
 export function fetchVehicleCatalog(): Promise<VehicleCatalog> {
   return request<VehicleCatalog>("/v1/vehicles/");
 }

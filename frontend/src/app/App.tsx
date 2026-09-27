@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { ApiError, fetchLocation, fetchLocations } from "../api/client";
+import { ApiError, fetchLocation, fetchLocations, fetchNearbyLocations } from "../api/client";
 import type { BBox, LocationFilters, MapLocation } from "../api/types";
 import { FilterBar } from "../features/filters/FilterBar";
 import { DetailPanel } from "../features/location/DetailPanel";
+import { NearbyStations } from "../features/location/NearbyStations";
 import { MapCanvas } from "../features/map/MapCanvas";
 import { MapStatus } from "../features/map/MapStatus";
 import { SearchBox } from "../features/search/SearchBox";
-import { SourceDrawer } from "../features/sources/SourceDrawer";
+// Phase 1: منابع و مجوز به کاربر نشان داده نمی‌شود
+// import { SourceDrawer } from "../features/sources/SourceDrawer";
 import { EMPTY_FILTERS, activeFilterCount, readMapState, writeMapState } from "../lib/filters";
-import { useMediaQuery } from "../lib/useMediaQuery";
+// import { useMediaQuery } from "../lib/useMediaQuery";
 import { connectorsForQuery, findVehicle, useVehicleCatalog } from "../lib/vehicles";
 import logo from "../assets/ev98-logo.png";
 
@@ -20,9 +22,11 @@ export function App() {
   const [filters, setFilters] = useState<LocationFilters>(initial.filters);
   const [selectedId, setSelectedId] = useState<string | null>(initial.selectedId);
   const [flyTarget, setFlyTarget] = useState<{ id: string; lat: number; lng: number } | null>(null);
-  const [sourcesOpen, setSourcesOpen] = useState(false);
+  // Phase 1: دراور منابع داده مخفی
+  // const [sourcesOpen, setSourcesOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const isMobile = useMediaQuery("(max-width: 800px)");
+  const [searchOrigin, setSearchOrigin] = useState<{ lat: number; lng: number } | null>(null);
+  // const isMobile = useMediaQuery("(max-width: 800px)");
   const opener = useRef<HTMLElement | null>(null);
   const flyFromUrl = useRef(Boolean(initial.selectedId));
 
@@ -50,6 +54,11 @@ export function App() {
     queryKey: ["location", selectedId],
     queryFn: () => fetchLocation(selectedId!),
     enabled: Boolean(selectedId),
+  });
+  const nearby = useQuery({
+    queryKey: ["nearby-locations", searchOrigin, queryFilters],
+    queryFn: () => fetchNearbyLocations(searchOrigin!.lat, searchOrigin!.lng, queryFilters),
+    enabled: searchOrigin !== null && !waitingForVehicle,
   });
 
   const items = locations.data?.items ?? [];
@@ -86,7 +95,9 @@ export function App() {
   }, [detail.data, selectedId]);
 
   useEffect(() => {
-    document.title = detail.data?.name ? `${detail.data.name} | EV98` : "EV98 | نقشه شارژ خودرو برقی";
+    document.title = detail.data?.name
+      ? `${detail.data.name} | EV98`
+      : "EV98 | نقشه شارژ خودرو برقی ایران";
   }, [detail.data]);
 
   const selectLocation = useCallback((id: string | null, fly?: MapLocation) => {
@@ -103,10 +114,26 @@ export function App() {
     setSelectedId(id);
   }, []);
 
-  const onMapSelect = useCallback((id: string) => selectLocation(id), [selectLocation]);
+  const onMapSelect = useCallback(
+    (location: MapLocation) => selectLocation(location.id, location),
+    [selectLocation],
+  );
+
+  const nearbyItems = nearby.data?.items ?? [];
+  const nextNearbyStation = useMemo(() => {
+    if (!searchOrigin || !selectedId || nearbyItems.length < 2) return null;
+    const index = nearbyItems.findIndex((item) => item.id === selectedId);
+    if (index < 0) return null;
+    return nearbyItems[(index + 1) % nearbyItems.length] ?? null;
+  }, [nearbyItems, searchOrigin, selectedId]);
+
+  const onNextNearby = useCallback(() => {
+    if (!nextNearbyStation) return;
+    selectLocation(nextNearbyStation.id, nextNearbyStation);
+  }, [nextNearbyStation, selectLocation]);
 
   return (
-    <div className={selectedId ? "shell has-detail" : "shell"}>
+    <div className={`shell${selectedId ? " has-detail" : ""}${searchOrigin && !selectedId ? " has-nearby" : ""}`}>
       <a className="skip" href="#map">
         رفتن به نقشه
       </a>
@@ -115,6 +142,8 @@ export function App() {
           <img src={logo} alt="EV98" />
         </div>
         <SearchBox onSelect={(location) => selectLocation(location.id, location)} />
+        {/* Phase 1: دکمه «منابع داده» مخفی — منابع و مجوز به کاربر نشان داده نمی‌شود */}
+        {/*
         <button
           type="button"
           className="sources-button"
@@ -126,8 +155,14 @@ export function App() {
         >
           {isMobile ? "منابع" : "منابع داده"}
         </button>
+        */}
       </header>
-      <FilterBar filters={filters} detailOpen={Boolean(selectedId)} onChange={setFilters}>
+      <FilterBar
+        filters={filters}
+        detailOpen={Boolean(selectedId)}
+        nearbyOpen={Boolean(searchOrigin) && !selectedId}
+        onChange={setFilters}
+      >
         <MapStatus
           ready={ready}
           loading={waitingForVehicle || (ready && locations.isLoading)}
@@ -153,7 +188,11 @@ export function App() {
         onBounds={setBounds}
         onSelect={onMapSelect}
         onNotice={setNotice}
+        searchOrigin={searchOrigin}
+        onSearchOrigin={setSearchOrigin}
       />
+      {/* Phase 1: راهنمای وضعیت شارژ مخفی — فقط محل ایستگاه‌ها؛ وضعیت زنده در فاز بعدی */}
+      {/*
       <ul className="legend" aria-label="راهنمای وضعیت ایستگاه">
         <li>
           <img src="/map-pins/station-available.svg" alt="" aria-hidden="true" /> آزاد
@@ -165,9 +204,16 @@ export function App() {
           <img src="/map-pins/station-offline.svg" alt="" aria-hidden="true" /> خارج از دسترس
         </li>
         <li>
-          <img src="/map-pins/station-fast.svg" alt="" aria-hidden="true" /> شارژ سریع
+          <img src="/map-pins/station-operational.svg" alt="" aria-hidden="true" /> بدون وضعیت زنده
+        </li>
+        <li>
+          <img src="/map-pins/station-stale.svg" alt="" aria-hidden="true" /> اطلاعات منقضی
+        </li>
+        <li>
+          <img src="/map-pins/station-unknown.svg" alt="" aria-hidden="true" /> نامشخص
         </li>
       </ul>
+      */}
       {selectedId && (
         <DetailPanel
           location={detail.data}
@@ -175,9 +221,20 @@ export function App() {
           error={detail.error instanceof ApiError ? detail.error.message : detail.error ? "جزئیات دریافت نشد" : null}
           vehicle={selectedVehicle?.variant ?? null}
           onClose={() => selectLocation(null)}
+          onNextNearby={nextNearbyStation ? onNextNearby : undefined}
         />
       )}
-      <SourceDrawer open={sourcesOpen} onClose={() => setSourcesOpen(false)} />
+      {searchOrigin && !selectedId && (
+        <NearbyStations
+          items={nearbyItems}
+          loading={nearby.isLoading || nearby.isFetching}
+          error={nearby.error instanceof ApiError ? nearby.error.message : nearby.error ? "ایستگاه‌های نزدیک دریافت نشدند." : null}
+          onSelect={(location) => selectLocation(location.id, location)}
+          onClose={() => setSearchOrigin(null)}
+        />
+      )}
+      {/* Phase 1: دراور همگام‌سازی/منابع داده مخفی */}
+      {/* <SourceDrawer open={sourcesOpen} onClose={() => setSourcesOpen(false)} /> */}
     </div>
   );
 }

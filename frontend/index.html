@@ -21,7 +21,7 @@
     />
     <meta name="theme-color" content="#0B1F1C" />
     <meta name="application-name" content="EV98" />
-    <meta name="robots" content="index, follow" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
     <link rel="canonical" href="https://ev98.ir/" />
 
     <!-- Open Graph / social preview -->
@@ -63,19 +63,40 @@
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "WebApplication",
-        "name": "EV98",
-        "alternateName": "ای‌وی ۹۸",
-        "url": "https://ev98.ir/",
-        "applicationCategory": "TravelApplication",
-        "operatingSystem": "Web",
-        "inLanguage": "fa-IR",
-        "description": "نقشه ایستگاه‌های شارژ خودرو برقی در ایران؛ پیدا کردن نزدیک‌ترین شارژر، بررسی سازگاری با خودرو و جزئیات ایستگاه.",
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "IRR"
-        }
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://ev98.ir/#website",
+            "url": "https://ev98.ir/",
+            "name": "EV98",
+            "alternateName": "ای‌وی ۹۸",
+            "inLanguage": "fa-IR"
+          },
+          {
+            "@type": "Organization",
+            "@id": "https://ev98.ir/#organization",
+            "name": "EV98",
+            "url": "https://ev98.ir/",
+            "logo": "https://ev98.ir/ev98-logo.png"
+          },
+          {
+            "@type": "WebApplication",
+            "@id": "https://ev98.ir/#app",
+            "name": "EV98",
+            "url": "https://ev98.ir/",
+            "applicationCategory": "TravelApplication",
+            "operatingSystem": "Web",
+            "inLanguage": "fa-IR",
+            "description": "نقشه ایستگاه‌های شارژ خودرو برقی در ایران؛ پیدا کردن نزدیک‌ترین شارژر، بررسی سازگاری با خودرو و جزئیات ایستگاه.",
+            "publisher": { "@id": "https://ev98.ir/#organization" },
+            "isPartOf": { "@id": "https://ev98.ir/#website" },
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "IRR"
+            }
+          }
+        ]
       }
     </script>
 

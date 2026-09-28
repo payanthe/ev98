@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.domain.connectors import power_family
 from app.domain.hours import resolve_hours
+from app.domain.provinces import province_at
 from app.domain.status import AVAILABILITY_LABELS, STANDARD_LABELS, STATUS_LABELS, summarize_statuses
 
 # Most → least common in live charging.connectors inventory.
@@ -46,6 +47,10 @@ def _load_options():
 
 def active_evses(location: Location) -> list[Evse]:
     return [evse for pool in location.pools for evse in pool.evses if evse.withdrawn_at is None]
+
+
+def _inside_iran(location: Location) -> bool:
+    return province_at(float(location.latitude), float(location.longitude)) is not None
 
 
 def _watts_to_kw(watts: int | None) -> float | None:
@@ -172,7 +177,11 @@ def search_locations(
     availability: str | None,
     limit: int,
 ) -> MapResponse:
-    stmt = select(Location).where(Location.deleted_at.is_(None)).options(*_load_options())
+    stmt = (
+        select(Location)
+        .where(Location.deleted_at.is_(None), Location.publish_status == "published")
+        .options(*_load_options())
+    )
     # Lat/lng bounds keep the map query correct for Iran without a geography cast.
     # `coordinates` remains the canonical PostGIS point for later distance indexes.
     if south is not None and west is not None and north is not None and east is not None:
@@ -197,6 +206,8 @@ def search_locations(
     source_set = set(sources)
     items: list[MapLocation] = []
     for location in rows:
+        if not _inside_iran(location):
+            continue
         evses = active_evses(location)
         if not _matches(
             location,
@@ -389,22 +400,26 @@ def get_location(session, location_id) -> LocationDetail | None:
 
 
 def get_location_by_slug(session, slug: str) -> LocationDetail | None:
-    location_id = session.scalar(
-        select(Location.id).where(
+    location = session.scalar(
+        select(Location).where(
             Location.slug == slug,
             Location.deleted_at.is_(None),
             Location.publish_status == "published",
         )
     )
-    if location_id is None:
+    if location is None or not _inside_iran(location):
         return None
-    return get_location(session, location_id)
+    return get_location(session, location.id)
 
 
 def published_station_entries(session) -> list[tuple[str, datetime]]:
     rows = session.execute(
-        select(Location.slug, Location.updated_at)
+        select(Location.slug, Location.updated_at, Location.latitude, Location.longitude)
         .where(Location.deleted_at.is_(None), Location.publish_status == "published")
         .order_by(Location.slug)
     ).all()
-    return [(slug, updated_at) for slug, updated_at in rows]
+    return [
+        (slug, updated_at)
+        for slug, updated_at, latitude, longitude in rows
+        if province_at(float(latitude), float(longitude)) is not None
+    ]

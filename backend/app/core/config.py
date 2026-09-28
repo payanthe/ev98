@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     status_ttl_seconds: int = 900
     ingestion_token: str = ""
     public_site_url: str = "https://ev98.ir"
+    frontend_index_path: str = "/var/www/ev98/index.html"
 
     model_config = SettingsConfigDict(
         env_file=(str(_REPO_ROOT / ".env"), str(_BACKEND_ROOT / ".env")),

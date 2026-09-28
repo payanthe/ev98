@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 from app.domain.provinces import province_at
 from app.domain.slugs import public_location_slug, station_slug
+from app.services.locations import _inside_iran
 from app.services.sitemap import render_sitemap
 
 from app.domain.priority import claim
@@ -60,6 +61,29 @@ def test_sitemap_lists_home_and_station_pages():
     assert "<lastmod>2026-09-28</lastmod>" in xml
     assert "<loc>https://ev98.ir/stations/a&amp;b</loc>" in xml
     assert "<lastmod>" not in xml.split("a&amp;b")[1].split("</url>")[0]
+
+
+def test_sitemap_is_well_formed_xml_with_only_absolute_canonical_urls():
+    from xml.etree import ElementTree
+
+    xml = render_sitemap("https://ev98.ir/", [("تهران-ونک", None)])
+    root = ElementTree.fromstring(xml)
+    namespace = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+    locations = [node.text for node in root.findall("s:url/s:loc", namespace)]
+
+    assert locations == [
+        "https://ev98.ir/",
+        "https://ev98.ir/cars/",
+        "https://ev98.ir/stations/تهران-ونک",
+    ]
+
+
+def test_public_location_boundary_guard_excludes_foreign_coordinates():
+    iran = Location(latitude=35.7219, longitude=51.3347)
+    dubai = Location(latitude=25.2048, longitude=55.2708)
+
+    assert _inside_iran(iran) is True
+    assert _inside_iran(dubai) is False
 
 
 def test_persian_normalization_and_cluster_key():

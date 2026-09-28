@@ -1,10 +1,11 @@
 import logging
+import re
 import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from sqlalchemy.orm import Session
 
 from app.api.errors import AppError
@@ -14,8 +15,12 @@ from app.core.db import get_db, session_scope
 from app.ingestion.seed import ensure_sources
 from app.services.locations import published_station_entries
 from app.services.sitemap import render_sitemap
+from app.services.locations import get_location_by_slug
+from app.services.station_page import render_station_page
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+
+_STATION_SLUG = re.compile(r"^[\u0600-\u06FFa-z0-9]+(?:-[\u0600-\u06FFa-z0-9]+)*$")
 
 
 @asynccontextmanager
@@ -65,4 +70,20 @@ def health() -> dict[str, str]:
 @app.get("/sitemap.xml", include_in_schema=False)
 def sitemap(db: Session = Depends(get_db)) -> Response:
     xml = render_sitemap(settings.public_site_url, published_station_entries(db))
-    return Response(content=xml, media_type="application/xml", headers={"Cache-Control": "public, max-age=3600"})
+    return Response(
+        content=xml,
+        media_type="application/xml; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
+
+
+@app.get("/stations/{slug}", response_class=HTMLResponse, include_in_schema=False)
+def station_page(slug: str, db: Session = Depends(get_db)) -> HTMLResponse:
+    valid = len(slug) <= 120 and _STATION_SLUG.fullmatch(slug)
+    location = get_location_by_slug(db, slug) if valid else None
+    html = render_station_page(settings.frontend_index_path, settings.public_site_url, location, slug)
+    return HTMLResponse(
+        content=html,
+        status_code=200 if location is not None else 404,
+        headers={"Cache-Control": "public, max-age=300" if location is not None else "no-store"},
+    )

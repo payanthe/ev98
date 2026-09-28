@@ -26,7 +26,7 @@ export function sourceLabel(code: string): string {
 
 export function isUnknownOperator(name: string | null | undefined): boolean {
   if (!name) return true;
-  const normalized = name.trim().toLowerCase();
+  const normalized = name.trim().toLowerCase().replace(/^[\s()[\]{}]+|[\s()[\]{}]+$/g, "");
   return normalized === "" || normalized === "unknown" || normalized === "unknown operator";
 }
 

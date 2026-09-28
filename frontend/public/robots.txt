@@ -2,5 +2,9 @@ User-agent: *
 Allow: /
 
 Disallow: /map-pins/
+Disallow: /v1/
+Disallow: /docs
+Disallow: /redoc
+Disallow: /openapi.json
 
 Sitemap: https://ev98.ir/sitemap.xml

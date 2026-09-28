@@ -138,6 +138,10 @@ export function App() {
         رفتن به نقشه
       </a>
       <header className="topbar">
+        <div className="visually-hidden">
+          <h1>نقشه ایستگاه‌های شارژ خودرو برقی ایران</h1>
+          <p>ایستگاه شارژ نزدیک را پیدا کنید و توان، کانکتور و سازگاری آن با خودروی برقی خود را بررسی کنید.</p>
+        </div>
         <div className="brand">
           <img src={logo} alt="EV98" />
         </div>

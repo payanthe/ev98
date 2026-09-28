@@ -108,8 +108,6 @@ cp -a dist/. /var/www/ev98/
 
 ```bash
 cp /opt/ev98/deploy/nginx-ev98.ir.conf /etc/nginx/sites-available/ev98.ir
-# در صورت نیاز server_name را شامل www کنید:
-#   server_name ev98.ir www.ev98.ir;
 ln -sfn /etc/nginx/sites-available/ev98.ir /etc/nginx/sites-enabled/ev98.ir
 nginx -t && systemctl reload nginx
 ```
@@ -129,6 +127,10 @@ certbot --nginx -d ev98.ir -d www.ev98.ir --redirect
 ```bash
 curl -sI https://ev98.ir/
 curl -s https://ev98.ir/health
+curl -sI https://www.ev98.ir/       # باید 301 به https://ev98.ir/ باشد
+curl -sI https://ev98.ir/cars/      # باید text/html و 200 باشد
+curl -sI https://ev98.ir/sitemap.xml # باید application/xml و 200 باشد
+curl -s https://ev98.ir/robots.txt  # باید Sitemap را نشان دهد
 ```
 
 ### ۷) همگام‌سازی داده

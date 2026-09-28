@@ -29,6 +29,8 @@ services:
     volumes:
       # Vehicle catalog CSV (resolved as /outputs/... inside the image)
       - ./outputs:/outputs:ro
+      # Built SPA shell used to return station-specific SEO metadata before JS runs.
+      - /var/www/ev98:/var/www/ev98:ro
     ports:
       - "127.0.0.1:8098:8000"
     depends_on:

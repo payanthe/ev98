@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 class MapLocation(BaseModel):
     id: uuid.UUID
+    slug: str
     name: str
     lat: float
     lng: float
@@ -97,6 +98,7 @@ class SourceNoteOut(BaseModel):
 
 class LocationDetail(BaseModel):
     id: uuid.UUID
+    slug: str
     name: str
     name_en: str | None = None
     operator_name: str | None = None

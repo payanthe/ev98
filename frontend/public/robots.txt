@@ -2,3 +2,5 @@ User-agent: *
 Allow: /
 
 Disallow: /map-pins/
+
+Sitemap: https://ev98.ir/sitemap.xml

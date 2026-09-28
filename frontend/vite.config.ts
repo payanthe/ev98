@@ -3,6 +3,32 @@ import react from "@vitejs/plugin-react";
 
 const apiProxy = process.env.API_PROXY || "http://127.0.0.1:8000";
 
+/** Serve the static catalog at /cars and /cars/, ahead of the SPA fallback. */
+function carsPage(): Plugin {
+  const rewrite = (url: string | undefined) => {
+    const path = url?.split("?")[0];
+    if (path === "/cars" || path === "/cars/") return "/cars/index.html";
+    return null;
+  };
+  return {
+    name: "cars-page",
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        const nextUrl = rewrite(req.url);
+        if (nextUrl && req.url) req.url = nextUrl + (req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "");
+        next();
+      });
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        const nextUrl = rewrite(req.url);
+        if (nextUrl && req.url) req.url = nextUrl + (req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "");
+        next();
+      });
+    },
+  };
+}
+
 /** Rewrite relative SEO/social URLs to absolute when VITE_SITE_URL is set. */
 function absoluteSeoUrls(): Plugin {
   return {
@@ -20,13 +46,14 @@ function absoluteSeoUrls(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), absoluteSeoUrls()],
+  plugins: [react(), carsPage(), absoluteSeoUrls()],
   server: {
     host: "0.0.0.0",
     port: 5173,
     proxy: {
       "/v1": apiProxy,
       "/health": apiProxy,
+      "/sitemap.xml": apiProxy,
     },
   },
 });

@@ -142,6 +142,9 @@ export function App() {
           <img src={logo} alt="EV98" />
         </div>
         <SearchBox onSelect={(location) => selectLocation(location.id, location)} />
+        <a className="sources-button cars-nav" href="/cars/">
+          خودروها
+        </a>
         {/* Phase 1: دکمه «منابع داده» مخفی — منابع و مجوز به کاربر نشان داده نمی‌شود */}
         {/*
         <button

@@ -11,3 +11,4 @@ dist/
 .uv/
 *.egg-info/
 .vite/
+.env.production

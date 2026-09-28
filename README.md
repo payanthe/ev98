@@ -16,6 +16,9 @@
 مستند تشخیص و ادغام رکوردهای تکراری، قواعد matching و فرمان‌های review در
 [DUPLICATE_RECONCILIATION_FA.md](DUPLICATE_RECONCILIATION_FA.md) قرار دارد.
 
+مستند استقرار production روی سرور (nginx، Docker، Certbot، DNS آروان) در
+[DEPLOYMENT_FA.md](DEPLOYMENT_FA.md) است.
+
 پرداخت، رزرو، حساب کاربری و مسیریابی خودروی برقی در این برش نیستند.
 
 ## اجرا

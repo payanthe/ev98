@@ -32,6 +32,21 @@
 
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; overflow: hidden; }
+html.is-station-page,
+html.is-station-page body,
+html.is-station-page #root {
+  height: auto;
+  min-height: 100%;
+  overflow: auto;
+}
+.station-boot {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #e8f0ee;
+  color: #102a27;
+}
 html.has-vehicle-picker { overscroll-behavior: none; }
 button, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
@@ -107,6 +122,12 @@ a { color: var(--pine); }
 .brand { display: flex; gap: 8px; align-items: center; }
 .brand img { display: block; height: 32px; width: auto; }
 .sources-button { white-space: nowrap; }
+a.cars-nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
 
 .search {
   position: relative;

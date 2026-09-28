@@ -401,8 +401,8 @@ function ManualLocationPicker({ active, onPick }: { active: boolean; onPick: (po
     },
     dblclick(event) {
       if (!isMapSurfaceTarget(event.originalEvent.target)) return;
-      L.DomEvent.preventDefault(event);
-      L.DomEvent.stopPropagation(event);
+      L.DomEvent.preventDefault(event.originalEvent);
+      L.DomEvent.stopPropagation(event.originalEvent);
       onPick({ lat: event.latlng.lat, lng: event.latlng.lng });
     },
   });

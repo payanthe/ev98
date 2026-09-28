@@ -135,6 +135,7 @@ def _map_item(location: Location, now, distance_m: int | None = None) -> MapLoca
     available, total = _connector_totals(evses)
     return MapLocation(
         id=location.id,
+        slug=location.slug,
         name=location.canonical_name_fa,
         lat=float(location.latitude),
         lng=float(location.longitude),
@@ -351,6 +352,7 @@ def get_location(session, location_id) -> LocationDetail | None:
     )
     return LocationDetail(
         id=location.id,
+        slug=location.slug,
         name=location.canonical_name_fa,
         name_en=location.canonical_name_en,
         operator_name=location.operator.name if location.operator else None,
@@ -384,3 +386,25 @@ def get_location(session, location_id) -> LocationDetail | None:
         data_quality_score=float(location.data_quality_score) if location.data_quality_score is not None else None,
         updated_at=location.updated_at,
     )
+
+
+def get_location_by_slug(session, slug: str) -> LocationDetail | None:
+    location_id = session.scalar(
+        select(Location.id).where(
+            Location.slug == slug,
+            Location.deleted_at.is_(None),
+            Location.publish_status == "published",
+        )
+    )
+    if location_id is None:
+        return None
+    return get_location(session, location_id)
+
+
+def published_station_entries(session) -> list[tuple[str, datetime]]:
+    rows = session.execute(
+        select(Location.slug, Location.updated_at)
+        .where(Location.deleted_at.is_(None), Location.publish_status == "published")
+        .order_by(Location.slug)
+    ).all()
+    return [(slug, updated_at) for slug, updated_at in rows]

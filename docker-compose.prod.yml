@@ -1,0 +1,40 @@
+# Production stack for the VPS. Binds only to localhost so nginx (and other
+# sites on this host) remain the public entrypoint.
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: ev98
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ev98}
+      POSTGRES_DB: ev98
+    volumes:
+      - ev98_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ev98 -d ev98"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://ev98:${POSTGRES_PASSWORD:-ev98}@db:5432/ev98
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://ev98.ir,http://ev98.ir}
+      OCM_API_KEY: ${OCM_API_KEY:-}
+      ABRP_API_KEY: ${ABRP_API_KEY:-}
+      SHARINET_BASE_URL: ${SHARINET_BASE_URL:-https://gen.emapna.com}
+      STATUS_TTL_SECONDS: ${STATUS_TTL_SECONDS:-900}
+      INGESTION_TOKEN: ${INGESTION_TOKEN:-}
+    volumes:
+      # Vehicle catalog CSV (resolved as /outputs/... inside the image)
+      - ./outputs:/outputs:ro
+    ports:
+      - "127.0.0.1:8098:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  ev98_pg:

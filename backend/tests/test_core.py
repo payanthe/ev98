@@ -1,5 +1,9 @@
 from datetime import UTC, datetime, timedelta
 
+from app.domain.provinces import province_at
+from app.domain.slugs import public_location_slug, station_slug
+from app.services.sitemap import render_sitemap
+
 from app.domain.priority import claim
 from app.domain.status import AVAILABLE, CHARGING, UNAVAILABLE, summarize_statuses
 from app.domain.text import haversine_m, normalize_fa, toman_to_rial
@@ -22,6 +26,40 @@ def _point(name: str, lat: float, lng: float, external_id: str) -> NormalizedRec
         lat=lat,
         lng=lng,
     )
+
+
+def test_province_comes_from_iran_boundaries():
+    assert province_at(35.71321, 51.41113) == "تهران"
+    assert province_at(32.6546, 51.6680) == "اصفهان"
+    assert province_at(35.8400, 50.9391) == "البرز"
+    assert province_at(25.2854, 51.5310) is None
+
+
+def test_station_slug_starts_with_province():
+    assert station_slug("ایستگاه شارژ پارکینگ حافظ", "تهران") == "تهران-پارکینگ-حافظ"
+    assert station_slug("ایستگاه شارژ شارینت ونک", "تهران") == "تهران-ونک"
+    assert "sharinet" not in station_slug("sharinet station", "فارس")
+
+
+def test_public_slug_hides_data_source():
+    assert public_location_slug("sharinet-mccff3022587") == "mccff3022587"
+    assert public_location_slug("ocm-478473") == "478473"
+    assert public_location_slug("abrp-432969734") == "432969734"
+    assert public_location_slug("Sharinet") == "location"
+    assert "sharinet" not in public_location_slug("sharinet-mccff3022587")
+
+
+def test_sitemap_lists_home_and_station_pages():
+    xml = render_sitemap(
+        "https://ev98.ir/",
+        [("sharinet-12", datetime(2026, 9, 28, tzinfo=UTC)), ("a&b", None)],
+    )
+    assert "<loc>https://ev98.ir/</loc>" in xml
+    assert "<loc>https://ev98.ir/cars/</loc><lastmod>2026-09-28</lastmod>" in xml
+    assert "<loc>https://ev98.ir/stations/sharinet-12</loc>" in xml
+    assert "<lastmod>2026-09-28</lastmod>" in xml
+    assert "<loc>https://ev98.ir/stations/a&amp;b</loc>" in xml
+    assert "<lastmod>" not in xml.split("a&amp;b")[1].split("</url>")[0]
 
 
 def test_persian_normalization_and_cluster_key():

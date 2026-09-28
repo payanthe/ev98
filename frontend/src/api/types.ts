@@ -7,6 +7,7 @@ export type BBox = {
 
 export type MapLocation = {
   id: string;
+  slug?: string;
   name: string;
   lat: number;
   lng: number;
@@ -69,6 +70,7 @@ export type Evse = {
 
 export type LocationDetail = {
   id: string;
+  slug?: string;
   name: string;
   name_en: string | null;
   operator_name: string | null;

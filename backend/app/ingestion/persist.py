@@ -17,6 +17,8 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.core.config import settings
 from app.domain.priority import claim
+from app.domain.provinces import province_at
+from app.domain.slugs import station_slug
 from app.domain.text import normalize_fa, toman_to_rial
 from app.ingestion.matching import LocationIdentity, MatchEvidence, match_locations
 from app.ingestion.records import NormalizedConnector, NormalizedEvse, NormalizedNote, NormalizedRecord, normalized_dict
@@ -88,8 +90,9 @@ def get_operator(session, name: str) -> Operator:
     return operator
 
 
-def unique_slug(session, source_code: str, external_id: str) -> str:
-    base = re.sub(r"[^a-z0-9]+", "-", f"{source_code}-{external_id}".lower()).strip("-")[:70] or "location"
+def unique_slug(session, source_code: str, external_id: str, name: str, lat: float, lng: float) -> str:
+    del source_code, external_id
+    base = station_slug(name, province_at(lat, lng))
     slug = base
     suffix = 2
     while session.scalar(select(Location.id).where(Location.slug == slug)):
@@ -100,7 +103,7 @@ def unique_slug(session, source_code: str, external_id: str) -> str:
 
 def new_location(session, source_code: str, external_id: str, name: str, lat: float, lng: float) -> Location:
     location = Location(
-        slug=unique_slug(session, source_code, external_id),
+        slug=unique_slug(session, source_code, external_id, name, lat, lng),
         canonical_name_fa=name,
         name_normalized=normalize_fa(name),
         publish_status="published",

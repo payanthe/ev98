@@ -79,6 +79,10 @@ export function fetchLocation(id: string): Promise<LocationDetail> {
   return request<LocationDetail>(`/v1/locations/${id}`);
 }
 
+export function fetchLocationBySlug(slug: string): Promise<LocationDetail> {
+  return request<LocationDetail>(`/v1/locations/by-slug/${encodeURIComponent(slug)}`);
+}
+
 export function fetchSources(): Promise<SourceStatus[]> {
   return request<SourceStatus[]>("/v1/ingestion/sources");
 }

@@ -1,3 +1,4 @@
+import re
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -6,7 +7,9 @@ from sqlalchemy.orm import Session
 from app.api.errors import AppError
 from app.core.db import get_db
 from app.schemas.api import LocationDetail, MapResponse
-from app.services.locations import get_location, search_locations
+from app.services.locations import get_location, get_location_by_slug, search_locations
+
+_SLUG = re.compile(r"^[\u0600-\u06FFa-z0-9]+(?:-[\u0600-\u06FFa-z0-9]+)*$")
 
 router = APIRouter(prefix="/locations", tags=["locations"])
 
@@ -69,6 +72,16 @@ def list_locations(
         availability=availability,
         limit=limit,
     )
+
+
+@router.get("/by-slug/{slug}", response_model=LocationDetail)
+def read_location_by_slug(slug: str, db: Session = Depends(get_db)) -> LocationDetail:
+    if len(slug) > 120 or not _SLUG.fullmatch(slug):
+        raise AppError(404, "Not found", "ایستگاه پیدا نشد.")
+    detail = get_location_by_slug(db, slug)
+    if detail is None:
+        raise AppError(404, "Not found", "ایستگاه پیدا نشد.")
+    return detail
 
 
 @router.get("/{location_id}", response_model=LocationDetail)

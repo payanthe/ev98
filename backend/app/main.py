@@ -2,15 +2,18 @@ import logging
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+from sqlalchemy.orm import Session
 
 from app.api.errors import AppError
 from app.api.v1.router import router as v1_router
 from app.core.config import settings
-from app.core.db import session_scope
+from app.core.db import get_db, session_scope
 from app.ingestion.seed import ensure_sources
+from app.services.locations import published_station_entries
+from app.services.sitemap import render_sitemap
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
@@ -57,3 +60,9 @@ async def app_error(_request: Request, exc: AppError) -> JSONResponse:
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/sitemap.xml", include_in_schema=False)
+def sitemap(db: Session = Depends(get_db)) -> Response:
+    xml = render_sitemap(settings.public_site_url, published_station_entries(db))
+    return Response(content=xml, media_type="application/xml", headers={"Cache-Control": "public, max-age=3600"})

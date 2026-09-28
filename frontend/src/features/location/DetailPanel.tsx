@@ -403,6 +403,9 @@ export function DetailPanel({
               مسیریابی
               <span className="visually-hidden">، در زبانه جدید</span>
             </a>
+            {location.slug && (
+              <a href={`/stations/${encodeURIComponent(location.slug)}`}>صفحه ایستگاه</a>
+            )}
             <a
               href={`https://www.openstreetmap.org/?mlat=${location.lat}&mlon=${location.lng}#map=17/${location.lat}/${location.lng}`}
               target="_blank"

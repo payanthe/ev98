@@ -41,7 +41,7 @@ function iconFor(location: MapLocation, selected: boolean): L.DivIcon {
   const height = selected ? 91 : 66;
   return L.divIcon({
     className: `pin-wrap${selected ? " is-selected" : ""}`,
-    html: `<div class="map-pin map-pin-${kind}${selected ? " is-selected" : ""}"><img src="/map-pins/station-${kind}.svg" alt="" /><span class="map-pin-power">${power}${unit}</span></div>`,
+    html: `<div class="map-pin map-pin-${kind}${selected ? " is-selected" : ""}"><img src="/map-pins/station-${kind}.svg" alt="" width="${width}" height="${height}" /><span class="map-pin-power">${power}${unit}</span></div>`,
     iconSize: [width, height],
     iconAnchor: [width / 2, height - 5],
   });
@@ -58,16 +58,6 @@ function moveView(map: L.Map, lat: number, lng: number, zoom: number, shiftForPa
   const center = map.unproject(point, zoom);
   if (reducedMotion) map.setView(center, zoom, { animate: false });
   else map.flyTo(center, zoom, { duration: 0.7 });
-}
-
-function MapTarget() {
-  const map = useMap();
-  useEffect(() => {
-    const container = map.getContainer();
-    container.id = "map";
-    container.tabIndex = -1;
-  }, [map]);
-  return null;
 }
 
 function BoundsWatcher({ onChange }: { onChange: (box: BBox) => void }) {
@@ -121,7 +111,7 @@ function StationsLayer({
       iconCreateFunction(cluster) {
         return L.divIcon({
           className: "cluster-wrap",
-          html: `<div class="map-cluster"><img src="/map-pins/station-cluster.svg" alt="" /><span>${formatNumber(cluster.getChildCount())}</span></div>`,
+          html: `<div class="map-cluster"><img src="/map-pins/station-cluster.svg" alt="" width="64" height="64" /><span>${formatNumber(cluster.getChildCount())}</span></div>`,
           iconSize: [64, 64],
           iconAnchor: [32, 32],
         });
@@ -564,7 +554,6 @@ export function MapCanvas({
       fadeAnimation={!reducedMotion}
       markerZoomAnimation={!reducedMotion}
     >
-      <MapTarget />
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

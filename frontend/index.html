@@ -4,16 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-2EZDZLWKS1"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-
-      gtag('config', 'G-2EZDZLWKS1');
-    </script>
-
     <title>EV98 | نقشه شارژ خودرو برقی ایران</title>
     <meta
       name="description"
@@ -55,10 +45,16 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://a.tile.openstreetmap.org" crossorigin />
+    <link rel="preconnect" href="https://b.tile.openstreetmap.org" crossorigin />
+    <link rel="dns-prefetch" href="https://c.tile.openstreetmap.org" />
     <link
       href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@420;560;700&display=swap"
+      media="print"
+      onload="this.media='all'"
       rel="stylesheet"
     />
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@420;560;700&amp;display=swap" rel="stylesheet" /></noscript>
 
     <script type="application/ld+json">
       {
@@ -100,39 +96,43 @@
       }
     </script>
 
-    <!-- Yandex.Metrika counter -->
-    <script type="text/javascript">
-      (function (m, e, t, r, i, k, a) {
-        m[i] =
-          m[i] ||
-          function () {
-            (m[i].a = m[i].a || []).push(arguments);
-          };
-        m[i].l = 1 * new Date();
-        for (var j = 0; j < document.scripts.length; j++) {
-          if (document.scripts[j].src === r) {
-            return;
-          }
-        }
-        (k = e.createElement(t)),
-          (a = e.getElementsByTagName(t)[0]),
-          (k.async = 1),
-          (k.src = r),
-          a.parentNode.insertBefore(k, a);
-      })(window, document, 'script', 'https://mc.yandex.ru/metrika/tag.js?id=113102281', 'ym');
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() { dataLayer.push(arguments); }
+      let analyticsStarted = false;
+      function startAnalytics() {
+        if (analyticsStarted) return;
+        analyticsStarted = true;
+        gtag('js', new Date());
+        gtag('config', 'G-2EZDZLWKS1');
+        const googleTag = document.createElement('script');
+        googleTag.async = true;
+        googleTag.src = 'https://www.googletagmanager.com/gtag/js?id=G-2EZDZLWKS1';
+        document.head.appendChild(googleTag);
 
-      ym(113102281, 'init', {
-        ssr: true,
-        webvisor: true,
-        clickmap: true,
-        ecommerce: 'dataLayer',
-        referrer: document.referrer,
-        url: location.href,
-        accurateTrackBounce: true,
-        trackLinks: true,
-      });
+        window.ym = window.ym || function () { (ym.a = ym.a || []).push(arguments); };
+        ym.l = Date.now();
+        ym(113102281, 'init', {
+          ssr: true,
+          webvisor: true,
+          clickmap: true,
+          ecommerce: 'dataLayer',
+          referrer: document.referrer,
+          url: location.href,
+          accurateTrackBounce: true,
+          trackLinks: true,
+        });
+        const yandexTag = document.createElement('script');
+        yandexTag.async = true;
+        yandexTag.src = 'https://mc.yandex.ru/metrika/tag.js?id=113102281';
+        document.head.appendChild(yandexTag);
+      }
+      window.addEventListener('pointerdown', startAnalytics, { once: true, passive: true });
+      window.addEventListener('keydown', startAnalytics, { once: true });
+      window.addEventListener('load', function () {
+        window.setTimeout(startAnalytics, 5000);
+      }, { once: true });
     </script>
-    <!-- /Yandex.Metrika counter -->
   </head>
   <body>
     <noscript><div><img src="https://mc.yandex.ru/watch/113102281" style="position:absolute; left:-9999px;" alt="" /></div></noscript>

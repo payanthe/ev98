@@ -9,7 +9,7 @@ import { formatNumber, formatOperatorName, formatPower, operatorLabelOrNull } fr
 import { stationHref } from "../../lib/station";
 import { ConnectorMark } from "../../ui/ConnectorMark";
 import { IconBolt, IconOperator, IconPin, IconPlug } from "../../ui/icons";
-import logo from "../../assets/ev98-logo.png";
+import logo from "../../assets/ev98-logo.webp";
 import "./station.css";
 
 const SITE = "https://ev98.ir";
@@ -276,7 +276,7 @@ export default function StationPage({ slug }: { slug: string }) {
       <header className="station-header">
         <div className="station-header-inner">
           <a className="station-logo" href="/" aria-label="EV98، بازگشت به نقشه">
-            <img src={logo} alt="EV98" />
+            <img src={logo} alt="EV98" width="240" height="62" />
           </a>
           <a className="station-map-link" href="/">
             <IconPin />

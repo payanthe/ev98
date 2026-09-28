@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { ApiError, fetchLocation, fetchLocations, fetchNearbyLocations } from "../api/client";
 import type { BBox, LocationFilters, MapLocation } from "../api/types";
 import { FilterBar } from "../features/filters/FilterBar";
-import { DetailPanel } from "../features/location/DetailPanel";
-import { NearbyStations } from "../features/location/NearbyStations";
 import { MapCanvas } from "../features/map/MapCanvas";
 import { MapStatus } from "../features/map/MapStatus";
 import { SearchBox } from "../features/search/SearchBox";
@@ -13,7 +11,10 @@ import { SearchBox } from "../features/search/SearchBox";
 import { EMPTY_FILTERS, activeFilterCount, readMapState, writeMapState } from "../lib/filters";
 // import { useMediaQuery } from "../lib/useMediaQuery";
 import { connectorsForQuery, findVehicle, useVehicleCatalog } from "../lib/vehicles";
-import logo from "../assets/ev98-logo.png";
+import logo from "../assets/ev98-logo.webp";
+
+const DetailPanel = lazy(() => import("../features/location/DetailPanel").then((module) => ({ default: module.DetailPanel })));
+const NearbyStations = lazy(() => import("../features/location/NearbyStations").then((module) => ({ default: module.NearbyStations })));
 
 const initial = readMapState();
 
@@ -143,7 +144,7 @@ export function App() {
           <p>ایستگاه شارژ نزدیک را پیدا کنید و توان، کانکتور و سازگاری آن با خودروی برقی خود را بررسی کنید.</p>
         </div>
         <div className="brand">
-          <img src={logo} alt="EV98" />
+          <img src={logo} alt="EV98" width="240" height="62" />
         </div>
         <SearchBox onSelect={(location) => selectLocation(location.id, location)} />
         <a className="sources-button cars-nav" href="/cars/">
@@ -186,18 +187,20 @@ export function App() {
           onDismissNotice={() => setNotice(null)}
         />
       </FilterBar>
-      <MapCanvas
-        locations={items}
-        selectedId={selectedId}
-        flyTarget={flyTarget}
-        panelOpen={Boolean(selectedId)}
-        autoCenterOnLocate={!selectedId}
-        onBounds={setBounds}
-        onSelect={onMapSelect}
-        onNotice={setNotice}
-        searchOrigin={searchOrigin}
-        onSearchOrigin={setSearchOrigin}
-      />
+      <main className="map-stage" id="map" tabIndex={-1} aria-label="نقشه ایستگاه‌های شارژ">
+        <MapCanvas
+          locations={items}
+          selectedId={selectedId}
+          flyTarget={flyTarget}
+          panelOpen={Boolean(selectedId)}
+          autoCenterOnLocate={!selectedId}
+          onBounds={setBounds}
+          onSelect={onMapSelect}
+          onNotice={setNotice}
+          searchOrigin={searchOrigin}
+          onSearchOrigin={setSearchOrigin}
+        />
+      </main>
       {/* Phase 1: راهنمای وضعیت شارژ مخفی — فقط محل ایستگاه‌ها؛ وضعیت زنده در فاز بعدی */}
       {/*
       <ul className="legend" aria-label="راهنمای وضعیت ایستگاه">
@@ -222,23 +225,27 @@ export function App() {
       </ul>
       */}
       {selectedId && (
-        <DetailPanel
-          location={detail.data}
-          loading={detail.isLoading}
-          error={detail.error instanceof ApiError ? detail.error.message : detail.error ? "جزئیات دریافت نشد" : null}
-          vehicle={selectedVehicle?.variant ?? null}
-          onClose={() => selectLocation(null)}
-          onNextNearby={nextNearbyStation ? onNextNearby : undefined}
-        />
+        <Suspense fallback={<div className="detail" role="status">در حال باز کردن جزئیات ایستگاه…</div>}>
+          <DetailPanel
+            location={detail.data}
+            loading={detail.isLoading}
+            error={detail.error instanceof ApiError ? detail.error.message : detail.error ? "جزئیات دریافت نشد" : null}
+            vehicle={selectedVehicle?.variant ?? null}
+            onClose={() => selectLocation(null)}
+            onNextNearby={nextNearbyStation ? onNextNearby : undefined}
+          />
+        </Suspense>
       )}
       {searchOrigin && !selectedId && (
-        <NearbyStations
-          items={nearbyItems}
-          loading={nearby.isLoading || nearby.isFetching}
-          error={nearby.error instanceof ApiError ? nearby.error.message : nearby.error ? "ایستگاه‌های نزدیک دریافت نشدند." : null}
-          onSelect={(location) => selectLocation(location.id, location)}
-          onClose={() => setSearchOrigin(null)}
-        />
+        <Suspense fallback={<div className="nearby-panel" role="status">در حال باز کردن ایستگاه‌های نزدیک…</div>}>
+          <NearbyStations
+            items={nearbyItems}
+            loading={nearby.isLoading || nearby.isFetching}
+            error={nearby.error instanceof ApiError ? nearby.error.message : nearby.error ? "ایستگاه‌های نزدیک دریافت نشدند." : null}
+            onSelect={(location) => selectLocation(location.id, location)}
+            onClose={() => setSearchOrigin(null)}
+          />
+        </Suspense>
       )}
       {/* Phase 1: دراور همگام‌سازی/منابع داده مخفی */}
       {/* <SourceDrawer open={sourcesOpen} onClose={() => setSourcesOpen(false)} /> */}

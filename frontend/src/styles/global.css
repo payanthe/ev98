@@ -84,6 +84,7 @@ a { color: var(--pine); }
 .skip:focus { transform: none; }
 
 .shell { height: 100dvh; min-height: 0; position: relative; overflow: hidden; }
+.map-stage { width: 100%; height: 100%; }
 .map {
   height: 100%;
   width: 100%;

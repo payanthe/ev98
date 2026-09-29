@@ -123,6 +123,7 @@ const csvEscape = (value) => {
 };
 const csv = [columns.join(","), ...rows.map((r) => columns.map((c) => csvEscape(r[c])).join(","))].join("\n") + "\n";
 await fs.writeFile(path.join(outputDir, "emapna_ev_normalized.csv"), csv, "utf8");
+await fs.writeFile(path.resolve("backend/app/data/vehicle_catalog.csv"), csv, "utf8");
 
 const workbook = Workbook.create();
 const summary = workbook.worksheets.add("Summary");

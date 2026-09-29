@@ -147,6 +147,7 @@ export function App() {
           <img src={logo} alt="EV98" width="240" height="62" />
         </div>
         <SearchBox onSelect={(location) => selectLocation(location.id, location)} />
+        <a className="sources-button cars-nav trip-nav" href="/trip/"><span className="trip-nav-long">برنامه‌ریزی سفر</span><span className="trip-nav-short">سفر</span></a>
         <a className="sources-button cars-nav" href="/cars/">
           خودروها
         </a>

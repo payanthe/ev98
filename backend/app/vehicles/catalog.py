@@ -20,9 +20,7 @@ from app.domain.text import normalize_fa
 
 VARIANT_NAMESPACE = uuid.UUID("6f1c1c2e-7a4e-5b1a-9c3d-0e0980000001")
 
-DATASET_PATH = (
-    Path(__file__).resolve().parents[3] / "outputs" / "emapna_ev_dataset" / "emapna_ev_normalized.csv"
-)
+DATASET_PATH = Path(__file__).resolve().parents[1] / "data" / "vehicle_catalog.csv"
 
 # Most → least common in live charging.connectors inventory.
 STATION_ORDER = ["CCS_2", "GBT_DC", "GBT_AC", "TYPE_2", "CHADEMO", "TYPE_1"]

@@ -8,13 +8,16 @@ import "leaflet.markercluster/dist/MarkerCluster.css";
 import "./styles/global.css";
 
 const StationPage = lazy(() => import("./features/station/StationPage"));
+const TripPage = lazy(() => import("./features/trip/TripPage"));
 
 function Root() {
   const slug = stationSlugFromPath(window.location.pathname);
+  const trip = window.location.pathname.replace(/\/+$/, "") === "/trip";
   useLayoutEffect(() => {
-    document.documentElement.classList.toggle("is-station-page", slug != null);
+    document.documentElement.classList.toggle("is-station-page", slug != null || trip);
     return () => document.documentElement.classList.remove("is-station-page");
-  }, [slug]);
+  }, [slug, trip]);
+  if (trip) return <Suspense fallback={<div className="station-boot" role="status">در حال باز کردن برنامه‌ریز سفر</div>}><TripPage /></Suspense>;
   if (!slug) return <App />;
   return (
     <Suspense fallback={<div className="station-boot" role="status">در حال باز کردن ایستگاه</div>}>

@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
     ocm_api_key: str = ""
     abrp_api_key: str = ""
+    neshan_api_key: str = ""
     sharinet_base_url: str = "https://gen.emapna.com"
     status_ttl_seconds: int = 900
     ingestion_token: str = ""

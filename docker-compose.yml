@@ -22,6 +22,7 @@ services:
       CORS_ORIGINS: http://localhost:5173
       OCM_API_KEY: ${OCM_API_KEY:-}
       ABRP_API_KEY: ${ABRP_API_KEY:-}
+      NESHAN_API_KEY: ${NESHAN_API_KEY:-}
       SHARINET_BASE_URL: https://gen.emapna.com
       STATUS_TTL_SECONDS: 900
       INGESTION_TOKEN: ${INGESTION_TOKEN:-}

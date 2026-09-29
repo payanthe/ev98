@@ -211,3 +211,22 @@ export type VehicleMake = {
 export type VehicleCatalog = {
   makes: VehicleMake[];
 };
+
+export type PlaceSuggestion = { title: string; address: string; lat: number; lng: number };
+
+export type TripPlan = {
+  status: "ok" | "no_feasible_route";
+  reason: string | null;
+  direct_distance_m: number;
+  total_distance_m?: number;
+  total_duration_s?: number;
+  total_charging_duration_s?: number | null;
+  total_stop_duration_s?: number | null;
+  total_trip_duration_s?: number | null;
+  effective_range_km: number;
+  arrival_soc?: number;
+  polyline: string;
+  route_includes_stops?: boolean;
+  stops: { id: string; slug: string; name: string; lat: number; lng: number; arrival_soc: number; departure_soc: number; power_kw: number | null; charging_power_kw?: number | null; charging_power_assumed?: boolean; charge_added_kwh?: number | null; charging_duration_s?: number | null; stop_duration_s?: number | null; availability: string }[];
+  legs: { distance_m: number; duration_s: number; departure_soc: number; arrival_soc: number }[];
+};

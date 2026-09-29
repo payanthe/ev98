@@ -105,7 +105,7 @@ a { color: var(--pine); }
   top: var(--top);
   inset-inline: 16px;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   gap: 8px;
   align-items: center;
 }
@@ -129,6 +129,7 @@ a.cars-nav {
   justify-content: center;
   text-decoration: none;
 }
+.trip-nav-short { display: none; }
 
 .search {
   position: relative;
@@ -2277,6 +2278,8 @@ button,
   .brand { padding-inline: 10px; }
   .brand img { height: 29px; max-width: 76px; object-fit: contain; }
   .sources-button { padding-inline: 12px; }
+  .trip-nav-long { display: none; }
+  .trip-nav-short { display: inline; }
   .search input { min-height: 50px; }
   .filters { border-radius: 18px; }
   .legend { font-size: 12px; }

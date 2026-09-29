@@ -6,6 +6,8 @@ import type {
   SourceStatus,
   SyncRun,
   VehicleCatalog,
+  PlaceSuggestion,
+  TripPlan,
 } from "./types";
 
 export class ApiError extends Error {
@@ -73,6 +75,24 @@ export function fetchNearbyLocations(
 
 export function fetchVehicleCatalog(): Promise<VehicleCatalog> {
   return request<VehicleCatalog>("/v1/vehicles/");
+}
+
+export function searchTripPlaces(q: string): Promise<PlaceSuggestion[]> {
+  const params = new URLSearchParams({ q });
+  return request<PlaceSuggestion[]>(`/v1/trips/places?${params}`);
+}
+
+export function reverseTripPlace(lat: number, lng: number): Promise<PlaceSuggestion> {
+  const params = new URLSearchParams({ lat: String(lat), lng: String(lng) });
+  return request<PlaceSuggestion>(`/v1/trips/reverse?${params}`);
+}
+
+export function planTrip(input: {
+  origin_lat: number; origin_lng: number;
+  destination_lat: number; destination_lng: number;
+  vehicle_id: string; start_soc: number;
+}): Promise<TripPlan> {
+  return request<TripPlan>("/v1/trips/plan", { method: "POST", body: JSON.stringify(input) });
 }
 
 export function fetchLocation(id: string): Promise<LocationDetail> {

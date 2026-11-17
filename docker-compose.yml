@@ -22,10 +22,12 @@ services:
       CORS_ORIGINS: http://localhost:5173
       OCM_API_KEY: ${OCM_API_KEY:-}
       ABRP_API_KEY: ${ABRP_API_KEY:-}
-      NESHAN_API_KEY: ${NESHAN_API_KEY:-}
+      OFFLINE_TRIP_DIR: /data/offline-trip
       SHARINET_BASE_URL: https://gen.emapna.com
       STATUS_TTL_SECONDS: 900
       INGESTION_TOKEN: ${INGESTION_TOKEN:-}
+    volumes:
+      - ./.offline-trip:/data/offline-trip:ro
     ports:
       - "8000:8000"
     depends_on:

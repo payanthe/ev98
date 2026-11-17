@@ -17,7 +17,9 @@ Docker:
 | مسیر روی سرور | نقش |
 |---|---|
 | `/opt/ev98` | کد پروژه + compose + `.env.production` |
-| `/var/www/ev98` | بیلد استاتیک فرانت |
+| `/var/www/ev98/current` | لینک به بیلد فعال فرانت |
+| `/var/www/ev98/assets` | فایل‌های نام‌گذاری‌شده با هش از نسخه‌های فرانت |
+| `/opt/ev98-data/offline-trip` | دادهٔ آفلاین نقشه، جست‌وجو، مسیریابی و ارتفاع |
 | `/etc/nginx/sites-available/ev98.ir` | کانفیگ nginx |
 | `/etc/letsencrypt/live/ev98.ir/` | گواهی Certbot |
 
@@ -25,7 +27,7 @@ Docker:
 
 ## پیش‌نیازها
 
-- Ubuntu با `docker`، `docker compose`، `nginx`، `certbot`، `nodejs`/`npm`
+- Ubuntu با `docker`، `docker compose`، `nginx`، `certbot`، Node.js 22.12 یا جدیدتر در سری ۲۲، `npm` و Python 3
 - دامنه به IP سرور اشاره کند (**ابر آروان خاموش / DNS Only**)
 - کلیدهای اختیاری OCM و ABRP در env
 
@@ -49,15 +51,21 @@ Docker:
 ### ۱) کپی کد
 
 ```bash
-mkdir -p /opt/ev98 /var/www/ev98
-# از ماشین توسعه:
-rsync -az --delete \
-  --exclude '.git' --exclude 'node_modules' --exclude '.venv' \
-  --exclude 'frontend/dist' --exclude '.agents' --exclude '.obsidian' \
-  ./ root@SERVER:/opt/ev98/
+git clone https://github.com/payanthe/ev98.git /opt/ev98
+mkdir -p /var/www/ev98 /opt/ev98-data/offline-trip
 ```
 
-یا `git clone` از GitHub و ساخت `.env.production` روی سرور.
+دادهٔ سفر را جدا از کد و مطابق [راهنمای آماده‌سازی داده](README.md#برنامهریز-سفر-آفلاین) آماده کنید.
+از ماشین دارای داده، چهار مسیر زیر را منتقل کنید. پوشهٔ `elevation` برای محاسبهٔ شیب و نمایش نمودار لازم است.
+
+```bash
+rsync -a --progress \
+  .offline-trip/iran.pmtiles .offline-trip/places.sqlite \
+  .offline-trip/valhalla_tiles .offline-trip/elevation \
+  root@SERVER:/opt/ev98-data/offline-trip/
+```
+
+برای تعویض دادهٔ یک نسخهٔ فعال، فایل‌های کامل را ابتدا در پوشه‌ای جدید آماده کنید و سپس مسیر آن را در `EV98_OFFLINE_TRIP_PATH` قرار دهید.
 
 ### ۲) محیط production
 
@@ -71,12 +79,11 @@ ABRP_API_KEY=
 SHARINET_BASE_URL=https://gen.emapna.com
 STATUS_TTL_SECONDS=900
 INGESTION_TOKEN=<توکن تصادفی برای sync>
-VITE_SITE_URL=https://ev98.ir
+EV98_OFFLINE_TRIP_PATH=/opt/ev98-data/offline-trip
 ```
 
 ```bash
 chmod 600 /opt/ev98/.env.production
-cp /opt/ev98/.env.production /opt/ev98/.env   # compose بعضی متغیرها را از .env هم می‌خواند
 ```
 
 کاتالوگ خودرو از `outputs/emapna_ev_dataset/emapna_ev_normalized.csv` خوانده می‌شود و در compose به `/outputs` داخل کانتینر mount شده است.
@@ -85,24 +92,21 @@ cp /opt/ev98/.env.production /opt/ev98/.env   # compose بعضی متغیرها 
 
 ```bash
 cd /opt/ev98
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
-docker compose -f docker-compose.prod.yml ps
-curl -s http://127.0.0.1:8098/health   # باید {"status":"ok"} باشد
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build --wait
+docker compose -f docker-compose.prod.yml --env-file .env.production ps
+curl -fsS http://127.0.0.1:8098/v1/trips/ready
 ```
 
-Migration با استارت api (`alembic upgrade head`) اجرا می‌شود.
+Migration با استارت API اجرا می‌شود. Compose وضعیت آمادگی نقشه، نمایهٔ جست‌وجو و گراف مسیر را از `/v1/trips/ready` می‌گیرد.
 
 ### ۴) بیلد فرانت
 
 ```bash
-cd /opt/ev98/frontend
-npm ci
-VITE_SITE_URL=https://ev98.ir npm run build
-rm -rf /var/www/ev98/*
-cp -a dist/. /var/www/ev98/
+cd /opt/ev98
+VITE_SITE_URL=https://ev98.ir python3 deploy/publish_frontend.py --web-root /var/www/ev98
 ```
 
-فرانت با path نسبی (`/v1/...`) به API می‌زند؛ nginx همان origin را پروکسی می‌کند.
+فرانت از مسیر نسبی `/v1/...` به API همان دامنه وصل می‌شود. اسکریپت ابتدا نسخه را می‌سازد و بعد لینک `current` را با یک عملیات عوض می‌کند. فایل‌های هش‌دار نسخه‌های قبلی برای تب‌های باز در دسترس می‌مانند.
 
 ### ۵) nginx
 
@@ -163,21 +167,14 @@ curl -s https://ev98.ir/v1/ingestion/sources | python3 -m json.tool
 ## به‌روزرسانی (deploy مجدد)
 
 ```bash
-# 1) کد را به /opt/ev98 برسانید (rsync یا git pull)
-cd /opt/ev98
-
-# 2) API
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
-
-# 3) فرانت
-cd frontend && npm ci && VITE_SITE_URL=https://ev98.ir npm run build
-rm -rf /var/www/ev98/* && cp -a dist/. /var/www/ev98/
-
-# 4) اگر nginx عوض شده
-nginx -t && systemctl reload nginx
+cd /opt/ev98 &&
+git pull --ff-only &&
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build --wait &&
+curl -fsS http://127.0.0.1:8098/v1/trips/ready &&
+VITE_SITE_URL=https://ev98.ir python3 deploy/publish_frontend.py --web-root /var/www/ev98
 ```
 
-Volume دیتابیس (`ev98_pg`) با rebuild پاک نمی‌شود.
+در اولین انتشار با ساختار `current`، پس از ساخت موفق فرانت، نسخهٔ جدید کانفیگ nginx را نصب کنید و با `nginx -t && systemctl reload nginx` فعال کنید. Volume دیتابیس `ev98_pg` در به‌روزرسانی عادی حفظ می‌شود.
 
 ## دستورات مفید
 

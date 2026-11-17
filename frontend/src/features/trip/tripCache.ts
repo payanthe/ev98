@@ -1,6 +1,6 @@
 import type { PlaceSuggestion, TripPlan } from "../../api/types";
 
-const CACHE_KEY = "ev98.trip.latestPlan.v3";
+const CACHE_KEY = "ev98.trip.latestPlan.v9";
 const MAX_AGE_MS = 15 * 60 * 1000;
 
 function tripKey(origin: PlaceSuggestion, destination: PlaceSuggestion, vehicleId: string, soc: number) {

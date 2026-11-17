@@ -12,6 +12,9 @@ dependencies = [
   "alembic>=1.14",
   "pydantic-settings>=2.6",
   "httpx>=0.28",
+  "pyvalhalla==3.9.1",
+  "rasterio>=1.5.2,<2",
+  "numpy>=2,<3",
 ]
 
 [project.optional-dependencies]

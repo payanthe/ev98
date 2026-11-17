@@ -43,19 +43,7 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="preconnect" href="https://a.tile.openstreetmap.org" crossorigin />
-    <link rel="preconnect" href="https://b.tile.openstreetmap.org" crossorigin />
-    <link rel="dns-prefetch" href="https://c.tile.openstreetmap.org" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@420;560;700&display=swap"
-      media="print"
-      onload="this.media='all'"
-      rel="stylesheet"
-    />
-    <noscript><link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@420;560;700&amp;display=swap" rel="stylesheet" /></noscript>
-
+    <link rel="preload" href="/fonts/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -97,11 +85,21 @@
     </script>
 
     <script>
+      const offlineTripPage = /^\/trip\/?$/.test(location.pathname);
+      if (!offlineTripPage) {
+        for (const [host, rel] of [['a', 'preconnect'], ['b', 'preconnect'], ['c', 'dns-prefetch']]) {
+          const hint = document.createElement('link');
+          hint.rel = rel;
+          hint.href = `https://${host}.tile.openstreetmap.org`;
+          if (rel === 'preconnect') hint.crossOrigin = '';
+          document.head.appendChild(hint);
+        }
+      }
       window.dataLayer = window.dataLayer || [];
       function gtag() { dataLayer.push(arguments); }
       let analyticsStarted = false;
       function startAnalytics() {
-        if (analyticsStarted) return;
+        if (analyticsStarted || offlineTripPage) return;
         analyticsStarted = true;
         gtag('js', new Date());
         gtag('config', 'G-2EZDZLWKS1');

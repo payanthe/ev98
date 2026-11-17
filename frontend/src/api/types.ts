@@ -214,10 +214,68 @@ export type VehicleCatalog = {
 
 export type PlaceSuggestion = { title: string; address: string; lat: number; lng: number };
 
+export type TripDirection = {
+  type: string;
+  modifier: string | null;
+  exit: number | null;
+  road: string | null;
+  distance_m: number;
+};
+
+export type TripProfileSegment = {
+  start_m: number;
+  end_m: number;
+  start_elevation_m: number | null;
+  end_elevation_m: number | null;
+  resolution_m: number | null;
+  start_soc: number;
+  end_soc: number;
+  draw_kwh: number;
+  regen_kwh: number;
+  uphill_m: number;
+  downhill_m: number;
+};
+
+export type TripTerrainSpan = { start_m: number; end_m: number; kind: "uncertain" | "bridge" | "tunnel" };
+
+export type TripRouteKind = "consumption" | "recovery" | "neutral" | "uphill" | "downhill" | "level" | "unknown";
+
+export type TripMapLeg = {
+  polyline: string;
+  distance_m: number;
+  energy: [endMeters: number, kind: TripRouteKind][];
+  slope: [endMeters: number, kind: TripRouteKind][];
+};
+
+export type TripElevationProfile = {
+  map_legs?: TripMapLeg[];
+  quality_spans?: TripTerrainSpan[];
+  structures_unchecked_m?: number;
+  segments: TripProfileSegment[];
+  stops: {
+    name: string;
+    distance_m: number;
+    arrival_soc: number;
+    departure_soc: number;
+    charge_kwh: number | null;
+  }[];
+  uphill_m: number;
+  downhill_m: number;
+  mostly_flat_m: number;
+  unprofiled_m: number;
+  draw_kwh: number;
+  regen_kwh: number;
+};
+
 export type TripPlan = {
   status: "ok" | "no_feasible_route";
   reason: string | null;
   direct_distance_m: number;
+  direct_energy_kwh?: number | null;
+  direct_battery_used_pct?: number;
+  energy_kwh?: number | null;
+  grade_status?: "applied" | "partial" | "unavailable" | "disabled";
+  elevation_profile?: TripElevationProfile | null;
   total_distance_m?: number;
   total_duration_s?: number;
   total_charging_duration_s?: number | null;
@@ -227,6 +285,7 @@ export type TripPlan = {
   arrival_soc?: number;
   polyline: string;
   route_includes_stops?: boolean;
+  directions?: TripDirection[];
   stops: { id: string; slug: string; name: string; lat: number; lng: number; arrival_soc: number; departure_soc: number; power_kw: number | null; charging_power_kw?: number | null; charging_power_assumed?: boolean; charge_added_kwh?: number | null; charging_duration_s?: number | null; stop_duration_s?: number | null; availability: string }[];
-  legs: { distance_m: number; duration_s: number; departure_soc: number; arrival_soc: number }[];
+  legs: { distance_m: number; duration_s: number; departure_soc: number; arrival_soc: number; energy_kwh?: number | null; grade_applied?: boolean }[];
 };

@@ -447,6 +447,13 @@ GTAG = """<!-- Google tag (gtag.js) -->
 """
 
 CSS = """
+@font-face {
+  font-family: Vazirmatn;
+  src: url("/fonts/Vazirmatn-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
 :root {
   color-scheme: light;
   --ink: #102a27;
@@ -474,6 +481,7 @@ body {
     var(--page);
   color: var(--ink);
   font-family: Vazirmatn, Tahoma, sans-serif;
+  font-weight: 400;
   font-size: 16px;
   line-height: 1.7;
 }
@@ -798,9 +806,7 @@ def render_cars_page(catalog: VehicleCatalog) -> str:
   <meta name="twitter:image" content="{SITE}/og-image.png">
   <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@420;560;700&amp;display=swap" rel="stylesheet">
+  <link rel="preload" href="/fonts/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin>
   <script type="application/ld+json">{_json_ld(catalog, anchors)}</script>
   <style>{CSS}</style>
 </head>

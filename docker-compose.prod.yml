@@ -26,13 +26,27 @@ services:
       SHARINET_BASE_URL: ${SHARINET_BASE_URL:-https://gen.emapna.com}
       STATUS_TTL_SECONDS: ${STATUS_TTL_SECONDS:-900}
       INGESTION_TOKEN: ${INGESTION_TOKEN:-}
+      OFFLINE_TRIP_DIR: /data/offline-trip
+      FRONTEND_INDEX_PATH: /var/www/ev98/current/index.html
     volumes:
       # Vehicle catalog CSV (resolved as /outputs/... inside the image)
       - ./outputs:/outputs:ro
-      # Built SPA shell used to return station-specific SEO metadata before JS runs.
-      - /var/www/ev98:/var/www/ev98:ro
+      - type: bind
+        source: ${EV98_OFFLINE_TRIP_PATH:-./.offline-trip}
+        target: /data/offline-trip
+        read_only: true
+        bind:
+          create_host_path: false
+      # Mount the parent so the atomic switch of "current" is visible to the API.
+      - ${EV98_WEB_ROOT:-/var/www/ev98}:/var/www/ev98:ro
     ports:
-      - "127.0.0.1:8098:8000"
+      - "127.0.0.1:${EV98_API_PORT:-8098}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/v1/trips/ready', timeout=5).close()"]
+      start_period: 15s
+      interval: 15s
+      timeout: 6s
+      retries: 4
     depends_on:
       db:
         condition: service_healthy

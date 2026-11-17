@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import json
 import math
+from collections.abc import Callable
 from dataclasses import dataclass
+from itertools import pairwise
 
-import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import selectinload
@@ -15,7 +15,10 @@ from app.models.entities import ChargingPool, Connector, Evse, Location
 from app.models.base import utcnow
 from app.vehicles.catalog import VehicleVariant, get_catalog
 
-BASE = "https://api.neshan.org"
+from app.services.trip_energy import LegEnergy, TripEnergy
+from app.services.trip_profile import chart_leg, chart_quality, chart_summary, map_leg
+from app.services.trip_router import Point, RoadLeg, car_matrix, car_route, decode_polyline
+
 RESERVE_SOC = 10.0
 MAX_DEPARTURE_SOC = 95.0
 REAL_RANGE_FACTOR = 0.75
@@ -26,12 +29,6 @@ DEFAULT_AC_POWER_KW = 7.0
 ASSUMED_VEHICLE_DC_LIMIT_KW = 80.0
 ASSUMED_VEHICLE_AC_LIMIT_KW = 11.0
 DC_STANDARDS = {"CCS_2", "GBT_DC", "CHADEMO"}
-
-
-@dataclass(frozen=True)
-class Point:
-    lat: float
-    lng: float
 
 
 @dataclass(frozen=True)
@@ -70,70 +67,8 @@ def _estimate_charging(battery_kwh: float | None, arrival_soc: float, departure_
     return round(energy_kwh, 1), charging_seconds, stop_seconds
 
 
-def _get(client: httpx.Client, path: str, params: dict) -> dict:
-    if not settings.neshan_api_key:
-        raise AppError(503, "Neshan not configured", "کلید سرویس نشان در سرور تنظیم نشده است.")
-    try:
-        response = client.get(f"{BASE}{path}", params=params, headers={"Api-Key": settings.neshan_api_key})
-        if response.status_code == 482:
-            raise AppError(429, "Neshan rate limit", "تعداد درخواست‌های نشان در این دقیقه به سقف رسید. یک دقیقه دیگر دوباره تلاش کنید.")
-        if response.status_code in {480, 483, 484, 485}:
-            raise AppError(503, "Neshan access denied", "دسترسی این کلید نشان به سرویس موردنیاز فعال نیست.")
-        response.raise_for_status()
-        return response.json()
-    except (httpx.HTTPError, ValueError) as exc:
-        raise AppError(502, "Neshan unavailable", "ارتباط با سرویس نشان برقرار نشد. کمی بعد دوباره تلاش کنید.") from exc
-
-
-def search_places(query: str) -> list[dict]:
-    with httpx.Client(timeout=12) as client:
-        data = _get(client, "/geocoding/v1", {"json": json.dumps({"address": query}, ensure_ascii=False)})
-    return [
-        {"title": query, "address": "، ".join(part for part in [item.get("province"), item.get("city"), item.get("neighbourhood"), f"بخش نامشخص: {item['unMatchedTerm']}" if item.get("unMatchedTerm") else None] if part), "lat": item["location"]["latitude"], "lng": item["location"]["longitude"]}
-        for item in data.get("items", [])[:5]
-        if item.get("location", {}).get("latitude") is not None and item.get("location", {}).get("longitude") is not None
-    ]
-
-
-def reverse_place(point: Point) -> dict:
-    with httpx.Client(timeout=12) as client:
-        data = _get(client, "/v5/reverse", {"lat": point.lat, "lng": point.lng})
-    address = data.get("formatted_address") or data.get("city") or "موقعیت انتخاب‌شده روی نقشه"
-    return {"title": address, "address": address, "lat": point.lat, "lng": point.lng}
-
-
-def decode_polyline(encoded: str) -> list[Point]:
-    lat = lng = index = 0
-    points: list[Point] = []
-    while index < len(encoded):
-        values = []
-        for _ in range(2):
-            shift = result = 0
-            while True:
-                if index >= len(encoded):
-                    raise ValueError("Invalid polyline")
-                code = ord(encoded[index]) - 63
-                index += 1
-                result |= (code & 0x1F) << shift
-                shift += 5
-                if code < 0x20:
-                    break
-            values.append((result >> 1) ^ -(result & 1))
-        lat += values[0]
-        lng += values[1]
-        points.append(Point(lat / 1e5, lng / 1e5))
-    return points
-
-
-def _haversine(a: Point, b: Point) -> float:
-    lat1, lat2 = math.radians(a.lat), math.radians(b.lat)
-    dlat, dlng = lat2 - lat1, math.radians(b.lng - a.lng)
-    h = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlng / 2) ** 2
-    return 6371000 * 2 * math.asin(min(1, math.sqrt(h)))
-
-
 def _projection(point: Point, route: list[Point]) -> tuple[float, float]:
-    # Equirectangular projection is sufficient for candidate filtering; road distances come from Neshan.
+    # Equirectangular projection is sufficient for candidate filtering; the graph supplies road distances.
     scale = math.cos(math.radians(point.lat))
     px, py = point.lng * scale * 111_000, point.lat * 111_000
     progress = best_progress = 0.0
@@ -172,11 +107,12 @@ def _candidates(db: Session, route: list[Point], standards: set[str], route_m: f
         .options(selectinload(Location.pools).selectinload(ChargingPool.evses).selectinload(Evse.connectors))
     )
     stops: list[Stop] = []
+    endpoint_buffer = min(5_000, max(200, route_m * .05))
     now = utcnow()
     for location in db.scalars(stmt).all():
         point = Point(float(location.latitude), float(location.longitude))
         progress, deviation = _projection(point, route)
-        if deviation > 25_000 or progress < 5_000 or progress > route_m - 5_000:
+        if deviation > 25_000 or progress < endpoint_buffer or progress > route_m - endpoint_buffer:
             continue
         compatible = [
             connector for pool in location.pools for evse in pool.evses
@@ -211,46 +147,16 @@ def _candidates(db: Session, route: list[Point], standards: set[str], route_m: f
     return selected
 
 
-def _direction(client: httpx.Client, origin: Point, destination: Point, waypoints: list[Point] | None = None) -> dict:
-    params = {"type": "car", "origin": f"{origin.lat},{origin.lng}", "destination": f"{destination.lat},{destination.lng}"}
-    if waypoints:
-        params["waypoints"] = "|".join(f"{p.lat},{p.lng}" for p in waypoints)
-    data = _get(client, "/v4/direction", params)
-    routes = data.get("routes") or []
-    if not routes:
-        raise AppError(422, "No route", "نشان برای این مبدأ و مقصد مسیر رانندگی پیدا نکرد.")
-    return routes[0]
-
-
-def _matrix(client: httpx.Client, points: list[Point]) -> tuple[list[list[float]], list[list[float]]]:
-    size = len(points)
-    distance = [[float("inf")] * size for _ in range(size)]
-    duration = [[float("inf")] * size for _ in range(size)]
-    data = _get(client, "/v1/distance-matrix/no-traffic", {
-        "type": "car",
-        "origins": "|".join(f"{p.lat},{p.lng}" for p in points),
-        "destinations": "|".join(f"{p.lat},{p.lng}" for p in points),
-    })
-    for row_index, row in enumerate(data.get("rows", [])):
-        for col_index, element in enumerate(row.get("elements", [])):
-            if row_index < size and col_index < size and element.get("status") == "Ok":
-                distance[row_index][col_index] = float(element["distance"]["value"])
-                duration[row_index][col_index] = float(element["duration"]["value"])
-    return distance, duration
-
-
-def _choose_path(distance: list[list[float]], duration: list[list[float]], start_soc: float, range_km: float) -> list[int] | None:
-    n = len(distance)
+def _shortest_path(duration: list[list[float]], rejected: set[tuple[int, int]]) -> list[int] | None:
+    n = len(duration)
     costs = [float("inf")] * n
     previous = [-1] * n
     costs[0] = 0
     for i in range(n - 1):
         if not math.isfinite(costs[i]):
             continue
-        usable_soc = (start_soc if i == 0 else MAX_DEPARTURE_SOC) - RESERVE_SOC
         for j in range(i + 1, n):
-            leg = distance[i][j]
-            if not math.isfinite(leg) or leg / (range_km * 1000) * 100 > usable_soc:
+            if not math.isfinite(duration[i][j]) or (i, j) in rejected:
                 continue
             # Road time plus a modest charging-stop penalty. Charging times are estimated below.
             cost = costs[i] + duration[i][j] + (1800 if j < n - 1 else 0)
@@ -266,85 +172,164 @@ def _choose_path(distance: list[list[float]], duration: list[list[float]], start
     return path[::-1]
 
 
-def plan_trip(db: Session, origin: Point, destination: Point, vehicle_id: str, start_soc: float) -> dict:
+def _choose_path(leg_for: Callable[[int, int], LegEnergy], duration: list[list[float]], start_soc: float) -> list[int] | None:
+    rejected: set[tuple[int, int]] = set()
+    # Each ranked path is the cheapest among all paths not yet ruled out.
+    # Only an actual battery check can reject a leg, including legs with net regeneration.
+    while (path := _shortest_path(duration, rejected)) is not None:
+        for i, j in pairwise(path):
+            departure = start_soc if i == 0 else MAX_DEPARTURE_SOC
+            if not leg_for(i, j).reaches(departure, RESERVE_SOC):
+                rejected.add((i, j))
+                break
+        else:
+            return path
+    return None
+
+
+def _grade_status(profiles: list[LegEnergy], include_grade: bool) -> str:
+    if not include_grade:
+        return "disabled"
+    if all(p.uses_grade for p in profiles):
+        return "applied"
+    return "partial" if any(p.uses_grade for p in profiles) else "unavailable"
+
+
+def plan_trip(db: Session, origin: Point, destination: Point, vehicle_id: str, start_soc: float,
+              *, include_grade: bool = True) -> dict:
     variant = get_catalog().get(vehicle_id)
     if variant is None:
         raise AppError(404, "Vehicle not found", "خودرو پیدا نشد.")
     if variant.powertrain_type not in {"BEV", "PHEV"} or not variant.range_km or not variant.station_standards:
         raise AppError(422, "Vehicle data incomplete", "برای این خودرو اطلاعات برد یا سوکت لازم برای برنامه‌ریزی موجود نیست.")
     effective_range = variant.range_km * REAL_RANGE_FACTOR
-    with httpx.Client(timeout=20) as client:
-        direct = _direction(client, origin, destination)
-        encoded = direct.get("overview_polyline", {}).get("points", "")
-        try:
-            route = decode_polyline(encoded)
-        except ValueError as exc:
-            raise AppError(502, "Invalid route", "هندسهٔ مسیر نشان قابل خواندن نیست.") from exc
-        direct_m = sum(leg["distance"]["value"] for leg in direct.get("legs", []))
-        if len(route) < 2 or direct_m <= 0:
-            raise AppError(422, "No route", "مسیر معتبری برای سفر پیدا نشد.")
-        if direct_m / (effective_range * 1000) * 100 <= start_soc - RESERVE_SOC:
-            stops: list[Stop] = []
-            points = [origin, destination]
-            distance = [[0, direct_m], [float("inf"), 0]]
-            duration = [[0, sum(leg["duration"]["value"] for leg in direct["legs"])], [float("inf"), 0]]
-            path = [0, 1]
-            final = direct
-        else:
-            stops = _candidates(db, route, set(variant.station_standards), direct_m, variant)
-            points = [origin] + [s.point for s in stops] + [destination]
-            if len(points) <= 2:
-                return {"status": "no_feasible_route", "reason": "ایستگاه شارژ سازگار در نزدیکی مسیر پیدا نشد.", "direct_distance_m": direct_m, "effective_range_km": round(effective_range), "stops": [], "legs": [], "polyline": encoded}
-            distance, duration = _matrix(client, points)
-            path = _choose_path(distance, duration, start_soc, effective_range)
-            if path is None:
-                return {"status": "no_feasible_route", "reason": "با شارژ فعلی و ایستگاه‌های ثبت‌شده، مسیر قابل‌اطمینانی پیدا نشد.", "direct_distance_m": direct_m, "effective_range_km": round(effective_range), "stops": [], "legs": [], "polyline": encoded}
-            try:
-                final = _direction(client, origin, destination, [points[i] for i in path[1:-1]])
-                route_includes_stops = True
-            except AppError as exc:
-                if exc.status_code != 429:
-                    raise
-                # The matrix already contains road distances for every chosen leg.
-                # Keep the direct overview line when the detailed route is rate limited.
-                final = {"overview_polyline": {"points": encoded}, "legs": [
-                    {"distance": {"value": distance[a][b]}, "duration": {"value": duration[a][b]}}
-                    for a, b in zip(path, path[1:])
-                ]}
-                route_includes_stops = False
+    battery_kwh = variant.battery_kwh_max or variant.battery_kwh_min
+    energy = TripEnergy(effective_range * 1000, battery_kwh,
+                        settings.offline_trip_dir / "elevation" if include_grade else None)
+    direct = car_route([origin, destination])
+    encoded = direct.polyline
+    try:
+        route = decode_polyline(encoded)
+    except ValueError as exc:
+        raise AppError(502, "Invalid route", "هندسهٔ مسیر محلی قابل خواندن نیست.") from exc
+    direct_leg = direct.legs[0]
+    direct_m = direct_leg.distance_m
+    if len(route) < 2 or direct_m <= 0:
+        raise AppError(422, "No route", "مسیر معتبری برای سفر پیدا نشد.")
+    direct_profile = energy.for_leg(direct_leg)
+    base = {
+        "direct_distance_m": direct_m,
+        "effective_range_km": round(effective_range),
+        "direct_energy_kwh": energy.kwh(direct_profile.net_soc),
+        "direct_battery_used_pct": round(start_soc - direct_profile.arrival(start_soc), 1),
+        "direct_min_departure_soc": (
+            round(RESERVE_SOC + direct_profile.peak_draw_soc, 2)
+            if direct_profile.reaches(100, RESERVE_SOC) else None
+        ),
+    }
+
+    def infeasible(reason: str) -> dict:
+        return {**base, "status": "no_feasible_route", "reason": reason, "stops": [], "legs": [],
+                "polyline": encoded, "grade_status": _grade_status([direct_profile], include_grade)}
+
+    stops: list[Stop] = []
+    if direct_profile.reaches(start_soc, RESERVE_SOC):
+        path = [0, 1]
+        final = direct
+        profiles = [direct_profile]
+    else:
+        stops = _candidates(db, route, set(variant.station_standards), direct_m, variant)
         if not stops:
-            route_includes_stops = True
-        final_legs = final.get("legs", [])
-        if len(final_legs) != len(path) - 1:
-            raise AppError(502, "Invalid route", "بخش‌های مسیر نهایی نشان با توقف‌ها مطابقت ندارند.")
-        soc = start_soc
-        result_legs = []
-        result_stops = []
-        total_charging_seconds = 0
-        total_stop_seconds = 0
-        charging_time_complete = True
-        battery_kwh = variant.battery_kwh_max or variant.battery_kwh_min
-        for idx, leg in enumerate(final_legs):
-            from_idx, to_idx = path[idx], path[idx + 1]
-            used_soc = leg["distance"]["value"] / (effective_range * 1000) * 100
-            if idx > 0:
-                needed_soc = used_soc + RESERVE_SOC
-                target_soc = max(soc, min(MAX_DEPARTURE_SOC, math.ceil(needed_soc)))
-                if target_soc < needed_soc:
-                    return {"status": "no_feasible_route", "reason": "مسافت واقعی یکی از بخش‌های مسیر از برد ایمن خودرو بیشتر است.", "direct_distance_m": direct_m, "effective_range_km": round(effective_range), "stops": [], "legs": [], "polyline": encoded}
-                station = stops[from_idx - 1]
-                charge_kwh, charging_seconds, stop_seconds = _estimate_charging(battery_kwh, soc, target_soc, station.charging_power_kw or station.power_kw)
-                if charging_seconds is None or stop_seconds is None:
-                    charging_time_complete = False
-                else:
-                    total_charging_seconds += charging_seconds
-                    total_stop_seconds += stop_seconds
-                result_stops.append({"id": station.id, "slug": station.slug, "name": station.name, "lat": station.point.lat, "lng": station.point.lng, "arrival_soc": round(soc), "departure_soc": round(target_soc), "power_kw": station.power_kw, "charging_power_kw": station.charging_power_kw or station.power_kw, "charging_power_assumed": station.charging_power_assumed, "charge_added_kwh": charge_kwh, "charging_duration_s": charging_seconds, "stop_duration_s": stop_seconds, "availability": station.availability})
-                soc = target_soc
-            arrival = soc - used_soc
-            if arrival < RESERVE_SOC - 0.01:
-                return {"status": "no_feasible_route", "reason": "مسافت واقعی مسیر با حاشیهٔ شارژ ایمن قابل پیمودن نیست.", "direct_distance_m": direct_m, "effective_range_km": round(effective_range), "stops": [], "legs": [], "polyline": encoded}
-            result_legs.append({"distance_m": round(leg["distance"]["value"]), "duration_s": round(leg["duration"]["value"]), "departure_soc": round(soc), "arrival_soc": round(arrival)})
-            soc = arrival
-        driving_seconds = sum(leg["duration_s"] for leg in result_legs)
-        return {"status": "ok", "reason": None, "direct_distance_m": direct_m, "total_distance_m": sum(leg["distance_m"] for leg in result_legs), "total_duration_s": driving_seconds, "total_charging_duration_s": total_charging_seconds if charging_time_complete else None, "total_stop_duration_s": total_stop_seconds if charging_time_complete else None, "total_trip_duration_s": driving_seconds + total_stop_seconds if charging_time_complete else None, "effective_range_km": round(effective_range), "arrival_soc": round(soc), "stops": result_stops, "legs": result_legs, "polyline": final.get("overview_polyline", {}).get("points", ""), "route_includes_stops": route_includes_stops}
+            return infeasible("ایستگاه شارژ سازگار در نزدیکی مسیر پیدا نشد.")
+        unreachable = "با شارژ فعلی و ایستگاه‌های ثبت‌شده، مسیر قابل‌اطمینانی پیدا نشد."
+        # Every leg starts at a prefix draw of zero, so even a descent cannot
+        # satisfy the reserve if the starting battery is already below it.
+        if start_soc < RESERVE_SOC - 1e-9:
+            return infeasible(unreachable)
+        points = [origin, *(stop.point for stop in stops), destination]
+        distance, duration = car_matrix(points)
+        last = len(points) - 1
+        estimates = {(0, last): direct_profile}
+
+        def leg_for(i: int, j: int) -> LegEnergy:
+            if (i, j) not in estimates:
+                profile = energy.flat(distance[i][j])
+                if energy.covers(points[i]) and energy.covers(points[j]):
+                    try:
+                        profile = energy.for_leg(car_route([points[i], points[j]]).legs[0])
+                    except AppError as exc:
+                        if exc.status_code != 422:
+                            raise
+                        profile = energy.flat(math.inf)
+                estimates[i, j] = profile
+            return estimates[i, j]
+
+        while True:
+            path = _choose_path(leg_for, duration, start_soc)
+            if path is None:
+                return infeasible(unreachable)
+            final = car_route([points[i] for i in path])
+            profiles = [energy.for_leg(leg) for leg in final.legs]
+            # Waypoint matching can change a leg. Recheck its actual profile before committing to a stop.
+            failed = next((idx for idx, profile in enumerate(profiles)
+                           if not profile.reaches(start_soc if idx == 0 else MAX_DEPARTURE_SOC, RESERVE_SOC)), None)
+            if failed is None:
+                break
+            duration[path[failed]][path[failed + 1]] = math.inf
+    soc = start_soc
+    result_legs = []
+    result_stops = []
+    total_charging_seconds = 0
+    total_stop_seconds = 0
+    charging_time_complete = True
+    chart_segments, chart_stops, quality_spans, map_legs = [], [], [], []
+    structures_unchecked_m = 0
+    distance_so_far = 0
+    total_distance = sum(round(leg.distance_m) for leg in final.legs)
+    chart_capacity = energy.battery_kwh if any(p.uses_grade for p in profiles) else None
+    interval = max(250., total_distance / 600)
+    for idx, (leg, profile) in enumerate(zip(final.legs, profiles, strict=True)):
+        from_idx = path[idx]
+        if idx > 0:
+            needed_soc = profile.peak_draw_soc + RESERVE_SOC
+            target_soc = max(soc, min(MAX_DEPARTURE_SOC, math.ceil(needed_soc - 1e-9)))
+            station = stops[from_idx - 1]
+            charge_kwh, charging_seconds, stop_seconds = _estimate_charging(battery_kwh, soc, target_soc, station.charging_power_kw or station.power_kw)
+            if charging_seconds is None or stop_seconds is None:
+                charging_time_complete = False
+            else:
+                total_charging_seconds += charging_seconds
+                total_stop_seconds += stop_seconds
+            result_stops.append({"id": station.id, "slug": station.slug, "name": station.name, "lat": station.point.lat, "lng": station.point.lng, "arrival_soc": round(soc), "departure_soc": round(target_soc), "power_kw": station.power_kw, "charging_power_kw": station.charging_power_kw or station.power_kw, "charging_power_assumed": station.charging_power_assumed, "charge_added_kwh": charge_kwh, "charging_duration_s": charging_seconds, "stop_duration_s": stop_seconds, "availability": station.availability})
+            if chart_capacity:
+                chart_stops.append({
+                    "name": station.name, "distance_m": distance_so_far,
+                    "arrival_soc": round(soc, 2), "departure_soc": round(target_soc, 2),
+                    "charge_kwh": charge_kwh,
+                })
+            soc = target_soc
+        arrival = profile.arrival(soc)
+        if chart_capacity:
+            chart_segments.extend(chart_leg(leg, profile, distance_so_far, soc, chart_capacity, interval))
+            styled_leg = map_leg(leg, profile, soc, chart_capacity)
+            if styled_leg:
+                map_legs.append(styled_leg)
+            quality_spans.extend(chart_quality(leg, profile, distance_so_far))
+            if profile.terrain and not profile.terrain.structures_checked:
+                structures_unchecked_m += round(leg.distance_m)
+        distance_so_far += round(leg.distance_m)
+        result_legs.append({"distance_m": round(leg.distance_m), "duration_s": round(leg.duration_s),
+                            "departure_soc": round(soc), "arrival_soc": round(arrival),
+                            "energy_kwh": energy.kwh(soc - arrival), "grade_applied": profile.uses_grade})
+        soc = arrival
+    driving_seconds = sum(leg["duration_s"] for leg in result_legs)
+    energy_kwh = round(sum(leg["energy_kwh"] for leg in result_legs), 3) if energy.battery_kwh else None
+    elevation_profile = (
+        chart_summary(chart_segments, chart_stops, total_distance, quality_spans, structures_unchecked_m)
+        if chart_segments else None
+    )
+    if elevation_profile:
+        elevation_profile["map_legs"] = map_legs
+    return {**base, "status": "ok", "reason": None, "energy_kwh": energy_kwh,
+            "grade_status": _grade_status(profiles, include_grade),
+            "elevation_profile": elevation_profile, "total_distance_m": total_distance, "total_duration_s": driving_seconds, "total_charging_duration_s": total_charging_seconds if charging_time_complete else None, "total_stop_duration_s": total_stop_seconds if charging_time_complete else None, "total_trip_duration_s": driving_seconds + total_stop_seconds if charging_time_complete else None, "arrival_soc": round(soc, 1), "stops": result_stops, "legs": result_legs, "polyline": final.polyline, "route_includes_stops": True, "directions": final.steps}

@@ -1,33 +1,18 @@
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
-import { CircleMarker, MapContainer, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
+import { CircleMarker, MapContainer, Polyline, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import { ApiError, planTrip, reverseTripPlace, searchTripPlaces } from "../../api/client";
-import type { PlaceSuggestion, TripPlan, VehicleVariant } from "../../api/types";
+import type { PlaceSuggestion, TripMapLeg, TripPlan, VehicleVariant } from "../../api/types";
 import { useVehicleCatalog, variantMatches } from "../../lib/vehicles";
 import { readMapState } from "../../lib/filters";
 import logo from "../../assets/ev98-logo.webp";
 import { cacheTrip, readCachedTrip } from "./tripCache";
 import { readTripUrl, tripUrl } from "./tripUrl";
+import { TripBasemap } from "./TripBasemap";
+import { TripDirections } from "./TripDirections";
+import { TripElevationChart } from "./TripElevationChart";
+import { decodePolyline, groupRouteParts, type RouteMode } from "./tripMapGeometry";
+import { TripRouteLayers, TripRouteLegend, RouteFocus, type RouteSelection } from "./TripRouteColors";
 import "./trip.css";
-
-function decodePolyline(encoded: string): [number, number][] {
-  const points: [number, number][] = [];
-  let lat = 0, lng = 0, index = 0;
-  while (index < encoded.length) {
-    const values: number[] = [];
-    for (let coordinate = 0; coordinate < 2; coordinate++) {
-      let shift = 0, result = 0, code: number;
-      do {
-        code = encoded.charCodeAt(index++) - 63;
-        result |= (code & 31) << shift;
-        shift += 5;
-      } while (code >= 32 && index < encoded.length);
-      values.push((result >> 1) ^ -(result & 1));
-    }
-    lat += values[0]; lng += values[1];
-    points.push([lat / 1e5, lng / 1e5]);
-  }
-  return points;
-}
 
 function FitRoute({ points }: { points: [number, number][] }) {
   const map = useMap();
@@ -126,19 +111,65 @@ function ClickToPick({ picking, onPick }: { picking: PickTarget | null; onPick: 
 }
 
 function TripMap({ plan, origin, destination, picking, onPick }: { plan: TripPlan | null; origin: PlaceSuggestion | null; destination: PlaceSuggestion | null; picking: PickTarget | null; onPick: (lat: number, lng: number) => void }) {
+  const [mapFailed, setMapFailed] = useState(false);
+  const [mode, setMode] = useState<RouteMode>("energy");
+  const [focus, setFocus] = useState<{ legs: TripMapLeg[] | undefined; selection: RouteSelection } | null>(null);
+  const mapLegs = plan?.elevation_profile?.map_legs;
+  const selection = focus?.legs === mapLegs ? focus?.selection ?? null : null;
+  const focusOn = (item: RouteSelection) => setFocus({ legs: mapLegs, selection: item });
+  const groups = useMemo(() => groupRouteParts(mapLegs, mode), [mapLegs, mode]);
   const points = useMemo(() => plan?.polyline ? decodePolyline(plan.polyline) : [], [plan?.polyline]);
-  return <div className={`trip-map${picking ? " is-picking" : ""}`} aria-label="نقشه انتخاب مبدأ و مقصد">
+  return <>
+    {groups.length > 0 && <TripRouteLegend mode={mode} groups={groups} selection={selection}
+      hasStops={Boolean(plan?.stops.length)} onMode={(value) => { setMode(value); setFocus(null); }}
+      onFocus={focusOn} onOverview={() => focusOn({ kind: "overview", index: 0, positions: points })} />}
+    <div className={`trip-map${picking ? " is-picking" : ""}`} aria-label="نقشه انتخاب مبدأ و مقصد">
     {picking && <div className="trip-map-hint" role="status">برای ثبت {picking === "origin" ? "مبدأ" : "مقصد"} روی نقشه کلیک کن</div>}
-    <MapContainer center={[32.4, 53.7]} zoom={5} scrollWheelZoom={false}>
-      <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+    {mapFailed && !picking && <div className="trip-map-hint" role="status">نقشهٔ پایهٔ آفلاین بارگیری نشد.</div>}
+    <MapContainer center={[32.4, 53.7]} zoom={5} minZoom={4} maxZoom={18} scrollWheelZoom={false} zoomAnimation={false}>
+      <TripBasemap onError={setMapFailed} />
       <ClickToPick picking={picking} onPick={onPick} />
       <FitRoute points={points} />
       <FitSelectedPoints origin={origin} destination={destination} hasRoute={points.length > 1} />
-      {points.length > 1 && <Polyline positions={points} pathOptions={{ color: "#087a65", weight: 6, opacity: 0.9 }} />}
+      {groups.length > 0
+        ? <TripRouteLayers groups={groups} outline={points} />
+        : points.length > 1 && <Polyline positions={points} pathOptions={{ color: "#087a65", weight: 6, opacity: 0.9 }} />}
+      {groups.length > 0 && <RouteFocus selection={selection} />}
       {origin && <CircleMarker center={[origin.lat, origin.lng]} radius={9} pathOptions={{ color: "#065a4b", fillColor: "#ffffff", fillOpacity: 1, weight: 4 }}><Tooltip permanent direction="top">مبدأ</Tooltip></CircleMarker>}
       {destination && <CircleMarker center={[destination.lat, destination.lng]} radius={9} pathOptions={{ color: "#102a27", fillColor: "#ffffff", fillOpacity: 1, weight: 4 }}><Tooltip permanent direction="top">مقصد</Tooltip></CircleMarker>}
       {plan?.stops.map((stop, index) => <CircleMarker key={stop.id} center={[stop.lat, stop.lng]} radius={10} pathOptions={{ color: "#b86e1b", fillColor: "#ffffff", fillOpacity: 1, weight: 4 }}><Tooltip>{index + 1}. {stop.name}</Tooltip></CircleMarker>)}
     </MapContainer>
+    </div>
+  </>;
+}
+
+function TripEnergySummary({ plan }: { plan: TripPlan }) {
+  const energy = plan.status === "ok" ? plan.energy_kwh : plan.direct_energy_kwh;
+  const label = plan.grade_status === "applied" ? "با شیب مسیر" :
+    plan.grade_status === "partial" ? "شیب فقط در بخش‌های دارای داده اعمال شد" :
+    plan.grade_status === "unavailable" ? "برآورد بر اساس مسافت، به‌دلیل نبود دادهٔ ارتفاع یا ظرفیت باتری" :
+    plan.grade_status === "disabled" ? "با فرض مسیر هموار" : null;
+  if (energy == null && !label) return null;
+  return <p className="trip-energy-summary">
+    {energy != null && <strong>
+      {energy < 0 ? "بازیابی خالص" : "مصرف برآوردی"}{plan.status !== "ok" ? " مسیر مستقیم" : ""}{" "}
+      {Math.abs(energy).toLocaleString("fa-IR", { maximumFractionDigits: 2 })} کیلووات‌ساعت
+    </strong>}
+    {label && <span>{label}</span>}
+  </p>;
+}
+
+function DirectBatterySummary({ plan, startSoc }: { plan: TripPlan; startSoc: number }) {
+  const used = plan.direct_battery_used_pct;
+  if (used == null) return null;
+  const directArrival = plan.status === "ok" && plan.stops.length === 0 ? plan.arrival_soc : undefined;
+  const formatPercent = (value: number) => `${value.toLocaleString("fa-IR", { maximumFractionDigits: 1 })}٪`;
+  return <div className="trip-battery-summary">
+    <small>باتری در مسیر بدون شارژ بین‌راهی</small>
+    <strong>{formatPercent(Math.abs(used))} {used < 0 ? "بازیابی خالص" : "مصرف خالص"}</strong>
+    <span>{directArrival != null
+      ? `از ${formatPercent(startSoc)} هنگام حرکت به ${formatPercent(directArrival)} هنگام رسیدن`
+      : "شارژ شروع برای پیمودن مسیر با ذخیرهٔ ۱۰٪ کافی نیست."}</span>
   </div>;
 }
 
@@ -261,14 +292,18 @@ export default function TripPage() {
           <div ref={mapPanelRef}><TripMap plan={plan} origin={origin} destination={destination} picking={picking} onPick={pickFromMap} /></div>
           {!plan && !busy && <p className="trip-map-caption">پس از انتخاب دو نقطه و خودرو، توقف‌های شارژ سازگار در همین‌جا نمایش داده می‌شوند.</p>}
           {plan && plannedPoints && <>
-            {plan.status === "ok" && plan.stops.length > 0 && !plan.route_includes_stops && <p className="trip-map-note">خط نقشه مسیر کلی سفر است؛ فاصلهٔ جاده‌ای تا ایستگاه‌ها جداگانه محاسبه شده است.</p>}
+            <DirectBatterySummary plan={plan} startSoc={soc} />
+            <TripEnergySummary plan={plan} />
+
             {plan.status === "ok" ? <>
               <div className="trip-stats"><div><small>طول مسیر</small><strong>{formatKm(plan.total_distance_m ?? 0)}</strong></div><div><small>زمان رانندگی</small><strong>{formatTime(plan.total_duration_s ?? 0)}</strong></div><div><small>توقف و شارژ</small><strong>{plan.total_stop_duration_s != null ? formatTime(plan.total_stop_duration_s) : "نامشخص"}</strong></div><div className="trip-total-time"><small>زمان کل سفر</small><strong>{plan.total_trip_duration_s != null ? formatTime(plan.total_trip_duration_s) : "نامشخص"}</strong></div><div><small>شارژ هنگام رسیدن</small><strong>{plan.arrival_soc?.toLocaleString("fa-IR")}٪</strong></div></div>
+              {plan.elevation_profile && <TripElevationChart profile={plan.elevation_profile} />}
               <ol className="trip-timeline"><li><span className="trip-timeline-dot" /><div><strong>حرکت از {plannedPoints.origin.title}</strong><small>شارژ شروع: {soc.toLocaleString("fa-IR")}٪</small></div></li>
                 {plan.stops.map((stop, index) => <li key={stop.id}><span className="trip-timeline-dot is-charge" /><div><strong><a href={`/stations/${stop.slug}`}>{stop.name}</a></strong><small>بعد از {formatKm(plan.legs[index].distance_m)} · شارژ ورود {stop.arrival_soc.toLocaleString("fa-IR")}٪ → خروج {stop.departure_soc.toLocaleString("fa-IR")}٪</small><small>{stop.stop_duration_s != null ? `حدود ${formatTime(stop.charging_duration_s ?? 0)} شارژ + ۵ دقیقه آماده‌سازی = ${formatTime(stop.stop_duration_s)} توقف` : "زمان توقف قابل تخمین نیست"}{stop.charge_added_kwh != null ? ` · ${stop.charge_added_kwh.toLocaleString("fa-IR", { maximumFractionDigits: 1 })} کیلووات‌ساعت` : ""}</small><small>{stop.charging_power_kw ? `توان مبنای تخمین ${stop.charging_power_kw.toLocaleString("fa-IR")} کیلووات${stop.charging_power_assumed ? " (فرضی)" : ""}` : "توان شارژ ثبت نشده"} · {stop.availability === "available" ? "شارژر آزاد گزارش شده؛ پیش از حرکت بررسی کن" : "وضعیت لحظه‌ای نامشخص است"}</small></div></li>)}
                 <li><span className="trip-timeline-dot is-end" /><div><strong>رسیدن به {plannedPoints.destination.title}</strong><small>شارژ باقی‌ماندهٔ تخمینی: {plan.arrival_soc?.toLocaleString("fa-IR")}٪</small></div></li></ol>
+              <TripDirections steps={plan.directions ?? []} />
             </> : <p className="trip-error">{plan.reason}</p>}
-            <p className="trip-caution">زمان شارژ با میانگین ۷۵٪ توان مبنا و ۵ دقیقه آماده‌سازی برای هر توقف تخمین زده شده است. وقتی سقف توان شارژ خودرو ثبت نشده باشد، سقف ۸۰ کیلووات DC یا ۱۱ کیلووات AC فرض می‌شود؛ برای توان نامشخص سوکت هم ۵۰ کیلووات DC یا ۷ کیلووات AC در نظر گرفته می‌شود. صف انتظار و منحنی شارژ اختصاصی خودرو در این زمان نیستند؛ قبل از حرکت، وضعیت ایستگاه را بررسی کن.</p>
+            <p className="trip-caution">زمان رانندگی برآورد نقشهٔ آفلاین و بدون ترافیک زنده است. زمان شارژ با میانگین ۷۵٪ توان مبنا و ۵ دقیقه آماده‌سازی برای هر توقف تخمین زده شده است. وقتی سقف توان شارژ خودرو ثبت نشده باشد، سقف ۸۰ کیلووات DC یا ۱۱ کیلووات AC فرض می‌شود؛ برای توان نامشخص سوکت هم ۵۰ کیلووات DC یا ۷ کیلووات AC در نظر گرفته می‌شود. صف انتظار و منحنی شارژ اختصاصی خودرو در این زمان نیستند؛ قبل از حرکت، وضعیت ایستگاه را بررسی کن.</p>
           </>}
         </section>
       </div>

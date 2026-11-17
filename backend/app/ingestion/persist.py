@@ -783,7 +783,8 @@ def persist_catalog_record(session, source: SourceSystem, record: NormalizedReco
     apply_location_fields(session, location, record.source_code, record, record.lat, record.lng)
 
     active = _active_sources(session, location)
-    abrp_overlay = record.source_code == "abrp" and "ocm" in active
+    # Catalog records supplement operator-grade hardware after a same-site merge.
+    abrp_overlay = record.source_code == "abrp" and bool(active & {"ocm", "sharinet"})
     if record.source_code == "ocm" and "abrp" in active and "ocm" not in active:
         withdraw_source_evses(session, location, "abrp")
 
@@ -810,6 +811,7 @@ def persist_catalog_record(session, source: SourceSystem, record: NormalizedReco
 
     sharinet_overlay = record.source_code == "ocm" and "sharinet" in _active_sources(session, location)
     if abrp_overlay:
+        withdraw_source_evses(session, location, "abrp", clear_notes=False)
         _overlay_live_status(session, location, record)
     elif sharinet_overlay:
         withdraw_source_evses(session, location, "ocm", clear_notes=False)

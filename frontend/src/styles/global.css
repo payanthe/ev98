@@ -1,6 +1,6 @@
 @font-face {
-  font-family: "Vazirmatn";
-  src: url("/fonts/Vazirmatn-Variable.woff2") format("woff2");
+  font-family: "EV98 UI";
+  src: url("/fonts/site.woff2") format("woff2");
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
@@ -10,7 +10,7 @@
   color: #102a27;
   background: #e8f0ee;
   color-scheme: light;
-  font-family: "Vazirmatn", "Tahoma", sans-serif;
+  font-family: "EV98 UI", "Tahoma", sans-serif;
   font-weight: 400;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -98,13 +98,13 @@ a { color: var(--pine); }
   height: 100%;
   width: 100%;
   background: #d7d0c4;
-  font-family: "Vazirmatn", "Tahoma", sans-serif;
+  font-family: "EV98 UI", "Tahoma", sans-serif;
 }
 .map:focus-visible { outline-offset: -3px; }
 .leaflet-container,
 .leaflet-control,
 .leaflet-tooltip,
-.leaflet-popup-content { font-family: "Vazirmatn", "Tahoma", sans-serif; }
+.leaflet-popup-content { font-family: "EV98 UI", "Tahoma", sans-serif; }
 .leaflet-control-attribution { direction: rtl; }
 
 .topbar, .filters, .legend, .detail, .map-tools, .nearby-panel, .pick-location-hint { position: absolute; z-index: 500; }
@@ -589,7 +589,7 @@ a.cars-nav {
   position: relative;
   width: 100%;
   height: 100%;
-  font-family: "Vazirmatn", "Tahoma", sans-serif;
+  font-family: "EV98 UI", "Tahoma", sans-serif;
 }
 .map-pin img,
 .map-cluster img {

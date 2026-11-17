@@ -448,8 +448,8 @@ GTAG = """<!-- Google tag (gtag.js) -->
 
 CSS = """
 @font-face {
-  font-family: Vazirmatn;
-  src: url("/fonts/Vazirmatn-Variable.woff2") format("woff2");
+  font-family: "EV98 UI";
+  src: url("/fonts/site.woff2") format("woff2");
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
@@ -480,7 +480,7 @@ body {
     radial-gradient(1200px 420px at 100% -80px, rgba(8, 122, 101, 0.16), transparent 60%),
     var(--page);
   color: var(--ink);
-  font-family: Vazirmatn, Tahoma, sans-serif;
+  font-family: "EV98 UI", Tahoma, sans-serif;
   font-weight: 400;
   font-size: 16px;
   line-height: 1.7;
@@ -806,7 +806,7 @@ def render_cars_page(catalog: VehicleCatalog) -> str:
   <meta name="twitter:image" content="{SITE}/og-image.png">
   <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="preload" href="/fonts/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/site.woff2" as="font" type="font/woff2" crossorigin>
   <script type="application/ld+json">{_json_ld(catalog, anchors)}</script>
   <style>{CSS}</style>
 </head>

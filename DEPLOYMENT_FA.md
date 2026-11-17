@@ -101,9 +101,12 @@ Migration با استارت API اجرا می‌شود. Compose وضعیت آم�
 
 ### ۴) بیلد فرانت
 
+فایل وب‌فونت ایران‌یکان X را جدا از کد در `/opt/ev98-data/fonts/IRANYekanXVF.woff2` قرار دهید. همین فایل در نسخهٔ فعال همراه فرانت سرو می‌شود.
+
 ```bash
 cd /opt/ev98
-VITE_SITE_URL=https://ev98.ir python3 deploy/publish_frontend.py --web-root /var/www/ev98
+VITE_SITE_URL=https://ev98.ir python3 deploy/publish_frontend.py --web-root /var/www/ev98 \
+  --font-file /opt/ev98-data/fonts/IRANYekanXVF.woff2
 ```
 
 فرانت از مسیر نسبی `/v1/...` به API همان دامنه وصل می‌شود. اسکریپت ابتدا نسخه را می‌سازد و بعد لینک `current` را با یک عملیات عوض می‌کند. فایل‌های هش‌دار نسخه‌های قبلی برای تب‌های باز در دسترس می‌مانند.
@@ -171,7 +174,8 @@ cd /opt/ev98 &&
 git pull --ff-only &&
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build --wait &&
 curl -fsS http://127.0.0.1:8098/v1/trips/ready &&
-VITE_SITE_URL=https://ev98.ir python3 deploy/publish_frontend.py --web-root /var/www/ev98
+VITE_SITE_URL=https://ev98.ir python3 deploy/publish_frontend.py --web-root /var/www/ev98 \
+  --font-file /opt/ev98-data/fonts/IRANYekanXVF.woff2
 ```
 
 در اولین انتشار با ساختار `current`، پس از ساخت موفق فرانت، نسخهٔ جدید کانفیگ nginx را نصب کنید و با `nginx -t && systemctl reload nginx` فعال کنید. Volume دیتابیس `ev98_pg` در به‌روزرسانی عادی حفظ می‌شود.
